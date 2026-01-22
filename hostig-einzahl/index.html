@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>Einzahl App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Firebase compat SDKs (wie Reiniger-App) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <h1>Einzahl App</h1>
+
+  <!-- PIN LOGIN -->
+  <section id="pinSection">
+    <h2>PIN Anmeldung</h2>
+    <input type="password" id="pinInput" placeholder="PIN eingeben" />
+    <button onclick="verifyPin()">Anmelden</button>
+    <div id="pinStatus"></div>
+  </section>
+
+  <!-- AUSWAHL -->
+  <section id="selectSection" style="display:none">
+    <h2>Automat auswählen</h2>
+
+    <select id="centerSelect"></select>
+    <select id="automatSelect"></select>
+
+    <div id="bestandBox"></div>
+  </section>
+
+  <!-- EINZAHLUNG -->
+  <section id="einzahlSection" style="display:none">
+    <h2>Einzahlung</h2>
+
+    <label>Scheine (€)</label>
+    <input type="number" id="scheineSumme" step="0.01" />
+
+    <label>Münzen gesamt (€)</label>
+    <input type="number" id="muenzenSumme" step="0.01" />
+
+    <label>davon 1-€ Münzen (€)</label>
+    <input type="number" id="einEuroSumme" step="0.01" />
+
+    <label>1-€ Münzen</label>
+    <select id="einEuroZiel">
+      <option value="automat">im Automaten lassen</option>
+      <option value="reserve">in Reserve</option>
+    </select>
+
+    <h3>Fotos</h3>
+    <input type="file" id="photo1" accept="image/*" />
+    <input type="file" id="photo2" accept="image/*" />
+
+    <button onclick="submitEinzahlung()">Speichern</button>
+
+    <div id="resultBox"></div>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>

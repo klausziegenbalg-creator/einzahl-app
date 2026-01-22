@@ -1,22 +1,7 @@
 {
-  "hosting": [
-    {
-      "site": "digitales-bordbuch",
-      "public": "public",
-      "ignore": [
-        "firebase.json",
-        "**/.*",
-        "**/node_modules/**"
-      ]
-    },
-    {
-      "site": "einzahl",
-      "public": "public",
-      "ignore": [
-        "firebase.json",
-        "**/.*",
-        "**/node_modules/**"
-      ]
-    }
-  ]
+  "hosting": {
+    "site": "einzahl",
+    "public": "hosting-einzahl",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"]
+  }
 }
