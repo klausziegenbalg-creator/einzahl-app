@@ -8,49 +8,102 @@
 </head>
 <body>
 
-  <header class="header">
-    <div class="container header-inner">
-      <img src="logo.png" alt="Automatenservice Logo" class="logo">
-      <div class="header-title">
-        Automatenservice Schiemann &amp; Automatenservice Albrecht
+<header class="header">
+  <div class="container header-inner">
+    <img src="Logo.png" alt="Automatenservice Logo" class="logo">
+    <div class="header-title">
+      Automatenservice Schiemann &amp; Automatenservice Albrecht
+    </div>
+  </div>
+</header>
+
+<main class="container">
+
+  <!-- PIN -->
+  <section id="pinSection" class="card">
+    <h2>Anmeldung</h2>
+
+    <label for="pinInput">PIN</label>
+    <input type="password" id="pinInput" inputmode="numeric">
+
+    <button type="button" onclick="verifyPin()">Anmelden</button>
+    <div id="pinStatus" class="status"></div>
+  </section>
+
+  <!-- Auswahl -->
+  <section id="selectSection" class="card" style="display:none">
+    <h2>Auswahl</h2>
+
+    <label for="centerSelect">Center</label>
+    <select id="centerSelect"></select>
+
+    <label for="automatSelect">Automat</label>
+    <select id="automatSelect"></select>
+
+    <div id="bestandBox" class="box"></div>
+  </section>
+
+  <!-- Einzahlung -->
+  <section id="einzahlSection" class="card" style="display:none">
+    <h2>Entnahme</h2>
+
+    <label>Scheine (€)</label>
+    <input id="scheineSumme" type="number" step="0.01">
+
+    <label>Münzen gesamt (€)</label>
+    <input id="muenzenSumme" type="number" step="0.01">
+
+    <label>Entnommene 1€ Münzen (€)</label>
+    <input id="einEuroEntnommen" type="number" step="1">
+
+    <h3>1€ Verteilung</h3>
+
+    <label>1€ → Automat</label>
+    <input id="einEuroAutomat" type="number" step="1">
+
+    <label>1€ → Reserve</label>
+    <input id="einEuroReserve" type="number" step="1">
+
+    <h2>Wechsler</h2>
+
+    <label>1€ Bestand im Wechsler (ALT)</label>
+    <input id="wechslerEinEuroAlt" type="number" step="1">
+
+    <h2>Fotos</h2>
+
+    <div class="photo-grid">
+      <div class="photo-item">
+        <label>Foto Bestand (Pflicht)</label>
+        <input id="fotoBestand" type="file" accept="image/*">
+        <img id="previewBestand" class="photo-preview">
+      </div>
+
+      <div class="photo-item">
+        <label>Einzahlbeleg Foto 1 (Pflicht)</label>
+        <input id="fotoBeleg1" type="file" accept="image/*">
+        <img id="previewBeleg1" class="photo-preview">
+      </div>
+
+      <div class="photo-item">
+        <label>Einzahlbeleg Foto 2 (optional)</label>
+        <input id="fotoBeleg2" type="file" accept="image/*">
+        <img id="previewBeleg2" class="photo-preview">
       </div>
     </div>
-  </header>
 
-  <main class="container">
+    <button type="button" onclick="submitEinzahlung()">💾 Einzahlung speichern</button>
 
-    <!-- PIN -->
-    <section id="pinSection" class="card">
-      <h2>Anmeldung</h2>
+    <div id="saveStatus" class="status"></div>
 
-      <label for="pinInput">PIN</label>
-      <input type="password" id="pinInput" autocomplete="one-time-code" inputmode="numeric">
+    <div class="result">
+      <h3>Ergebnis</h3>
+      <div>Neuer Wechslerbestand: <b><span id="resultWechslerNeu">–</span> €</b></div>
+      <div>Differenz: <b><span id="resultDifferenz">–</span> €</b></div>
+    </div>
+  </section>
 
-      <button type="button" onclick="verifyPin()">Anmelden</button>
+</main>
 
-      <div id="pinStatus" class="status"></div>
-    </section>
-
-    <!-- Auswahl -->
-    <section id="selectSection" class="card" style="display:none">
-      <h2>Auswahl</h2>
-
-      <label for="centerSelect">Center</label>
-      <select id="centerSelect"></select>
-
-      <label for="automatSelect">Automat</label>
-      <select id="automatSelect"></select>
-
-      <div id="bestandBox" class="box"></div>
-    </section>
-
-    <!-- Einzahlung -->
-    <section id="einzahlSection" class="card" style="display:none">
-      <!-- unverändert -->
-    </section>
-
-  </main>
-
-  <script src="app.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

@@ -6,7 +6,6 @@
 
   --primary:#0F4C5C;
   --primary2:#1B6F82;
-  --primary3:#2389A5;
 
   --danger:#B00020;
   --dangerbg:#FDECEC;
@@ -49,24 +48,93 @@ body{
 .logo{
   height:52px;
   width:auto;
-  object-fit:contain;
 }
 
 .header-title{
   font-size:14px;
-  letter-spacing:.4px;
-  opacity:.95;
-  text-align:center;
   font-weight:600;
+  text-align:center;
 }
 
-@media (max-width: 420px){
-  .logo{
-    height:46px;
-  }
-  .header-title{
-    font-size:13px;
-  }
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  box-shadow:var(--shadow);
+  padding:14px;
+  margin-top:14px;
 }
 
-/* Rest der CSS-Datei bleibt unverändert */
+h2{ color:var(--primary); margin:6px 0 10px; }
+h3{ color:var(--primary2); margin:12px 0 6px; }
+
+label{
+  display:block;
+  margin-top:12px;
+  font-size:13px;
+  color:var(--muted);
+}
+
+input,select,button{
+  width:100%;
+  margin-top:6px;
+  border-radius:12px;
+  border:1px solid var(--border);
+  padding:10px 12px;
+  font-size:15px;
+}
+
+button{
+  background:var(--primary);
+  color:#fff;
+  font-weight:700;
+  border:0;
+  cursor:pointer;
+}
+
+button:hover{ background:var(--primary2); }
+
+.status{ margin-top:10px; font-size:13px; }
+
+.status.error{
+  background:var(--dangerbg);
+  color:var(--danger);
+  padding:10px;
+  border-radius:12px;
+}
+
+.box{
+  margin-top:12px;
+  padding:12px;
+  border:1px dashed var(--border);
+  border-radius:12px;
+}
+
+.result{
+  margin-top:14px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:12px;
+}
+
+.photo-grid{
+  display:grid;
+  gap:12px;
+}
+
+@media(min-width:700px){
+  .photo-grid{ grid-template-columns:repeat(3,1fr); }
+}
+
+.photo-item{
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:10px;
+}
+
+.photo-preview{
+  display:none;
+  width:100%;
+  margin-top:8px;
+  border-radius:10px;
+}
