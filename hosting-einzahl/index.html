@@ -1,65 +1,134 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Einzahl App</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-  <!-- Firebase compat SDKs (wie Reiniger-App) -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
-
-  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-  <h1>Einzahl App</h1>
+  <header class="header">
+    <div class="container header-inner">
+      <img src="logo.png" alt="Logo" class="logo">
+    </div>
+  </header>
 
-  <!-- PIN LOGIN -->
-  <section id="pinSection">
-    <h2>PIN Anmeldung</h2>
-    <input type="password" id="pinInput" placeholder="PIN eingeben" />
-    <button onclick="verifyPin()">Anmelden</button>
-    <div id="pinStatus"></div>
-  </section>
+  <main class="container">
 
-  <!-- AUSWAHL -->
-  <section id="selectSection" style="display:none">
-    <h2>Automat auswählen</h2>
+    <!-- PIN -->
+    <section id="pinSection" class="card">
+      <h2>Anmeldung</h2>
 
-    <select id="centerSelect"></select>
-    <select id="automatSelect"></select>
+      <label for="pinInput">PIN</label>
+      <input type="password" id="pinInput" autocomplete="one-time-code" inputmode="numeric">
 
-    <div id="bestandBox"></div>
-  </section>
+      <button type="button" onclick="verifyPin()">Anmelden</button>
 
-  <!-- EINZAHLUNG -->
-  <section id="einzahlSection" style="display:none">
-    <h2>Einzahlung</h2>
+      <div id="pinStatus" class="status"></div>
+    </section>
 
-    <label>Scheine (€)</label>
-    <input type="number" id="scheineSumme" step="0.01" />
+    <!-- Auswahl -->
+    <section id="selectSection" class="card" style="display:none">
+      <h2>Auswahl</h2>
 
-    <label>Münzen gesamt (€)</label>
-    <input type="number" id="muenzenSumme" step="0.01" />
+      <label for="centerSelect">Center</label>
+      <select id="centerSelect"></select>
 
-    <label>davon 1-€ Münzen (€)</label>
-    <input type="number" id="einEuroSumme" step="0.01" />
+      <label for="automatSelect">Automat</label>
+      <select id="automatSelect"></select>
 
-    <label>1-€ Münzen</label>
-    <select id="einEuroZiel">
-      <option value="automat">im Automaten lassen</option>
-      <option value="reserve">in Reserve</option>
-    </select>
+      <div id="bestandBox" class="box"></div>
+    </section>
 
-    <h3>Fotos</h3>
-    <input type="file" id="photo1" accept="image/*" />
-    <input type="file" id="photo2" accept="image/*" />
+    <!-- Einzahlung -->
+    <section id="einzahlSection" class="card" style="display:none">
+      <h2>Entnahme</h2>
 
-    <button onclick="submitEinzahlung()">Speichern</button>
+      <label for="scheineSumme">Scheine (€)</label>
+      <input id="scheineSumme" type="number" step="0.01">
 
-    <div id="resultBox"></div>
-  </section>
+      <label for="muenzenSumme">Münzen gesamt (€)</label>
+      <input id="muenzenSumme" type="number" step="0.01">
+
+      <label for="einEuroEntnommen">Entnommene 1€ Münzen (€)</label>
+      <input id="einEuroEntnommen" type="number" step="1">
+
+      <h3>1€ Verteilung</h3>
+
+      <label for="einEuroAutomat">1€ → Automat</label>
+      <input id="einEuroAutomat" type="number" step="1">
+
+      <label for="einEuroReserve">1€ → Reserve</label>
+      <input id="einEuroReserve" type="number" step="1">
+
+      <h2>Wechsler</h2>
+
+      <label for="wechslerEinEuroAlt">1€ Bestand im Wechsler (ALT – abgelesen)</label>
+      <input id="wechslerEinEuroAlt" type="number" step="1">
+
+      <h2>Fotos</h2>
+
+      <div class="photo-grid">
+        <div class="photo-item">
+          <label for="fotoBestand">Foto Bestand (Pflicht)</label>
+          <input id="fotoBestand" type="file" accept="image/*" capture="environment">
+          <img id="previewBestand" class="photo-preview" alt="Vorschau Bestand">
+        </div>
+
+        <div class="photo-item">
+          <label for="fotoBeleg1">Einzahlbeleg Foto 1 (Pflicht)</label>
+          <input id="fotoBeleg1" type="file" accept="image/*" capture="environment">
+          <img id="previewBeleg1" class="photo-preview" alt="Vorschau Beleg 1">
+        </div>
+
+        <div class="photo-item">
+          <label for="fotoBeleg2">Einzahlbeleg Foto 2 (optional)</label>
+          <input id="fotoBeleg2" type="file" accept="image/*" capture="environment">
+          <img id="previewBeleg2" class="photo-preview" alt="Vorschau Beleg 2">
+        </div>
+      </div>
+
+      <button type="button" onclick="submitEinzahlung()">💾 Einzahlung speichern</button>
+
+      <div id="saveStatus" class="status"></div>
+
+      <div class="result">
+        <h3>Ergebnis</h3>
+        <div>
+          Neuer Wechslerbestand (1€):
+          <b><span id="resultWechslerNeu">–</span> €</b>
+        </div>
+        <div>
+          Bestanddifferenz:
+          <b><span id="resultDifferenz">–</span> €</b>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Firebase (Storage) -->
+  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-storage-compat.js"></script>
+
+  <script>
+    // Firebase Storage Config (wie bisher in deiner funktionierenden App)
+    const firebaseConfig = {
+      apiKey: "AIzaSyBo-pt3krDP9c5AxojmWaHVqPkoqmupOvA",
+      authDomain: "digitales-bordbuch.firebaseapp.com",
+      projectId: "digitales-bordbuch",
+      storageBucket: "digitales-bordbuch.appspot.com",
+      messagingSenderId: "612073997080",
+      appId: "1:612073997080:web:762a85694716da8f84546d",
+      measurementId: "G-VRX8Q8QNDH"
+    };
+
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    window.storage = firebase.storage();
+  </script>
 
   <script src="app.js"></script>
 </body>
