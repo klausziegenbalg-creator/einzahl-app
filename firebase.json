@@ -1,4 +1,7 @@
 {
+  "functions": {
+    "source": "functions"
+  },
   "hosting": {
     "site": "einzahl",
     "public": "hosting-einzahl",
@@ -8,26 +11,11 @@
       "**/node_modules/**"
     ],
     "rewrites": [
-      {
-        "source": "/verifyPin",
-        "function": "verifyPin"
-      },
-      {
-        "source": "/loadAutomaten",
-        "function": "loadAutomaten"
-      },
-      {
-        "source": "/getLastWechsler",
-        "function": "getLastWechsler"
-      },
-      {
-        "source": "/submitAutomat",
-        "function": "submitAutomat"
-      },
-      {
-        "source": "/submitBelege",
-        "function": "submitBelege"
-      }
+      { "source": "/verifyPin", "function": "verifyPin" },
+      { "source": "/loadAutomaten", "function": "loadAutomaten" },
+      { "source": "/getLastWechsler", "function": "getLastWechsler" },
+      { "source": "/submitAutomat", "function": "submitAutomat" },
+      { "source": "/submitBelege", "function": "submitBelege" }
     ]
   }
 }

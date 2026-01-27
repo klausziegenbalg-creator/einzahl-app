@@ -1,45 +1,67 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
-admin.initializeApp();
-const db = admin.firestore();
 
 exports.submitAutomat = functions.https.onRequest(async (req, res) => {
   try {
+    const db = admin.firestore();
+
     const {
       automatCode,
       stadt,
       teamleiter,
-      sessionId,
       scheine,
       muenzen,
       einEuroEntnommen,
       wechslerNeu,
       bestandFotoPath
-    } = req.body;
+    } = req.body || {};
 
-    if (!automatCode || !bestandFotoPath) {
-      return res.status(400).json({ ok: false, error: "Pflichtdaten fehlen" });
+    if (!automatCode || !stadt || !teamleiter || !bestandFotoPath) {
+      return res.json({ ok: false, error: "Pflichtfelder fehlen" });
     }
 
-    const sid =
-      sessionId ||
-      `${new Date().toISOString().slice(0, 10)}_${stadt}_${teamleiter}`;
-
-    await db.collection("einzahl_automaten").add({
+    // 1️⃣ Automat EINZELN speichern (unverändert)
+    await db.collection("automatenEinzahlungen").add({
       automatCode,
       stadt,
       teamleiter,
-      sessionId: sid,
-      scheine,
-      muenzen,
-      einEuroEntnommen,
-      wechslerNeu,
+      scheine: Number(scheine) || 0,
+      muenzen: Number(muenzen) || 0,
+      einEuroEntnommen: Number(einEuroEntnommen) || 0,
+      wechslerNeu: Number(wechslerNeu) || 0,
       bestandFotoPath,
       createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
-    res.json({ ok: true, sessionId: sid });
-  } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
+    // 2️⃣ 🔥 ZUSAMMENFASSUNG / AUSWERTUNG (NEU, wie im alten Backup)
+    await db.collection("einzahlungen").add({
+      stadt,
+      automatCode,
+
+      scheineSumme: Number(scheine) || 0,
+      muenzenSumme: Number(muenzen) || 0,
+
+      einEuro: {
+        entnommen: Number(einEuroEntnommen) || 0,
+        reserve: 0
+      },
+
+      wechsler: {
+        neu: Number(wechslerNeu) || 0
+      },
+
+      fotos: {
+        bestand: bestandFotoPath,
+        belege: []
+      },
+
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    return res.json({ ok: true });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ ok: false, error: "Serverfehler" });
   }
 });

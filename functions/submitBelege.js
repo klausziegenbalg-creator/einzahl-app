@@ -1,33 +1,24 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
-admin.initializeApp();
-const db = admin.firestore();
 
 exports.submitBelege = functions.https.onRequest(async (req, res) => {
   try {
-    const {
-      sessionId,
-      stadt,
-      teamleiter,
-      beleg1Path,
-      beleg2Path
-    } = req.body;
+    const db = admin.firestore();
 
-    if (!sessionId || !beleg1Path) {
-      return res.status(400).json({ ok: false, error: "Beleg fehlt" });
+    const { auswertungId, belegPath } = req.body || {};
+    if (!auswertungId || !belegPath) {
+      return res.json({ ok: false, error: "Pflichtfelder fehlen" });
     }
 
-    await db.collection("einzahl_belege").add({
-      sessionId,
-      stadt,
-      teamleiter,
-      beleg1Path,
-      beleg2Path: beleg2Path || null,
-      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    await db.collection("auswertungen").doc(auswertungId).update({
+      belegPath,
+      belegAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
-    res.json({ ok: true });
-  } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
+    return res.json({ ok: true });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ ok: false, error: "Serverfehler" });
   }
 });
