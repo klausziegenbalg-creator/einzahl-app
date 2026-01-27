@@ -4,7 +4,11 @@
  * - KEIN "name" mehr als Anzeige
  * - Anzeige IMMER über automatCode
  ************************************************/
-
+document.addEventListener(
+  "visibilitychange",
+  e => e.stopImmediatePropagation(),
+  true
+);
 /* =========================
    Netzwerk-Helper
 ========================= */
