@@ -65,7 +65,11 @@ let automatenByCenter = new Map();
 let reserveValue = 0;
 
 function normalizeCenter(value) {
-  return String(value || "").trim().toLowerCase();
+  return String(value || "")
+    .normalize("NFKC")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 }
 
 function setSelectOptions(selectEl, options, placeholder) {
@@ -148,12 +152,16 @@ function handleCenterChange() {
   const centerSelect = document.getElementById("centerSelect");
   const automatSelect = document.getElementById("automatSelect");
   const centerKey = normalizeCenter(centerSelect?.value || "");
+  const centerLabel = normalizeCenter(
+    centerSelect?.selectedOptions?.[0]?.textContent || ""
+  );
   const einzahlSection = document.getElementById("einzahlSection");
 
   let automaten = centerKey ? automatenByCenter.get(centerKey) || [] : [];
-  if (!automaten.length && centerKey) {
+  if (!automaten.length && (centerKey || centerLabel)) {
+    const lookupKey = centerKey || centerLabel;
     automaten = automatenCache.filter(
-      automat => normalizeCenter(automat.center) === centerKey
+      automat => normalizeCenter(automat.center) === lookupKey
     );
   }
 
@@ -199,24 +207,18 @@ async function loadAutomatenData() {
       automatenByCenter.get(key).push(automat);
     });
 
-    const centersFromApi = d?.centers?.map(c => c.name).filter(Boolean) || [];
-    const centersFromAutomaten = Array.from(automatenByCenter.keys()).map(
-      key => automatenByCenter.get(key)?.[0]?.center || key
-    );
     const centerMap = new Map();
-
-    [...centersFromApi, ...centersFromAutomaten].forEach(center => {
-      const key = normalizeCenter(center);
-      if (!key) return;
-      if (!centerMap.has(key)) {
-        centerMap.set(key, center);
-      }
+    automatenCache.forEach(automat => {
+      const label = automat.center || "Unbekannt";
+      const key = normalizeCenter(label);
+      if (!key || centerMap.has(key)) return;
+      centerMap.set(key, label);
     });
 
     setSelectOptions(
       centerSelect,
-      Array.from(centerMap.entries()).map(([, label]) => ({
-        value: label,
+      Array.from(centerMap.entries()).map(([key, label]) => ({
+        value: key,
         label
       })),
       "Bitte Center wählen"
