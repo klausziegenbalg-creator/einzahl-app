@@ -1,11 +1,12 @@
 /************************************************
- * Einzahl App – vollständige app.js (stabil)
+ * Einzahl App – vollständige app.js (FINAL)
+ * stabil, ungepatcht, ohne Flickerei
  ************************************************/
 
 /* =========================
    Netzwerk-Helper
 ========================= */
-async function postJsonWithFallback(path, payload) {
+async function postJson(path, payload) {
   const res = await fetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -19,30 +20,30 @@ async function postJsonWithFallback(path, payload) {
    Login / PIN
 ========================= */
 function verifyPin() {
-  const pinInput = document.getElementById("pinInput");
-  const statusEl = document.getElementById("pinStatus");
-  const pin = (pinInput?.value || "").trim();
+  const pin = (document.getElementById("pinInput")?.value || "").trim();
+  const status = document.getElementById("pinStatus");
 
   if (!pin) {
-    statusEl && (statusEl.innerText = "Bitte PIN eingeben");
+    status.innerText = "Bitte PIN eingeben";
     return;
   }
 
-  statusEl && (statusEl.innerText = "PIN wird geprüft …");
+  status.innerText = "PIN wird geprüft …";
 
-  postJsonWithFallback("/verifyPin", { pin })
+  postJson("/verifyPin", { pin })
     .then(d => {
-      if (!d || d.ok !== true) {
-        statusEl && (statusEl.innerText = d?.error || "PIN ungültig");
+      if (!d?.ok) {
+        status.innerText = d?.error || "PIN ungültig";
         return;
       }
+
       window.currentUser = d;
       document.getElementById("pinSection").style.display = "none";
       document.getElementById("appSection").style.display = "block";
       loadAutomatenData();
     })
     .catch(() => {
-      statusEl && (statusEl.innerText = "Server nicht erreichbar");
+      status.innerText = "Server nicht erreichbar";
     });
 }
 window.verifyPin = verifyPin;
@@ -64,126 +65,98 @@ let automatenCache = [];
 let automatenByCenter = new Map();
 let reserveValue = 0;
 
-function normalizeCenter(value) {
-  return String(value || "")
+function normalizeCenter(v) {
+  return String(v || "")
     .normalize("NFKC")
     .replace(/\s+/g, " ")
     .trim()
     .toLowerCase();
 }
 
-function setSelectOptions(selectEl, options, placeholder) {
-  if (!selectEl) return;
-  selectEl.innerHTML = "";
+function setSelect(select, options, placeholder) {
+  select.innerHTML = "";
   const ph = document.createElement("option");
   ph.value = "";
   ph.textContent = placeholder;
-  selectEl.appendChild(ph);
-  options.forEach(opt => {
+  select.appendChild(ph);
+
+  options.forEach(o => {
     const el = document.createElement("option");
-    el.value = opt.value;
-    el.textContent = opt.label;
-    if (opt.key) el.dataset.key = opt.key;
-    selectEl.appendChild(el);
+    el.value = o.value;
+    el.textContent = o.label;
+    select.appendChild(el);
   });
 }
 
-function renderBestandBox(automat, wechslerAlt = null) {
+function renderBestand(automat, wechslerAlt = null) {
   const box = document.getElementById("bestandBox");
-  if (!box) return;
   if (!automat) {
-    box.innerText = "";
+    box.innerHTML = "";
     return;
   }
-
-  const reserveLine = Number.isFinite(reserveValue)
-    ? `<div>Reserve: ${reserveValue} €</div>`
-    : "";
 
   box.innerHTML = `
     <div><b>${automat.name}</b></div>
     <div>Center: ${automat.center}</div>
-    <div>Scheine Bestand: ${automat.bestandScheine} €</div>
-    <div>Münzen Bestand: ${automat.bestandMuenzen} €</div>
-    <div>1€ Bestand: ${automat.bestandEinEuro} €</div>
-    <div id="wechslerAltInfo">${
-      wechslerAlt === null
-        ? "Wechsler (alt): wird geladen …"
-        : `Wechsler (alt): ${wechslerAlt} €`
-    }</div>
-    ${reserveLine}
+    <div>Scheine: ${automat.bestandScheine} €</div>
+    <div>Münzen: ${automat.bestandMuenzen} €</div>
+    <div>1€: ${automat.bestandEinEuro} €</div>
+    <div id="wechslerAltInfo">
+      ${wechslerAlt === null ? "Wechsler (alt): lädt …" : `Wechsler (alt): ${wechslerAlt} €`}
+    </div>
+    <div>Reserve: ${reserveValue} €</div>
   `;
 }
 
-async function loadLastWechsler(automatCode) {
+async function loadLastWechsler(code) {
   try {
-    const d = await postJsonWithFallback("/getLastWechsler", {
-      automatCode,
+    const d = await postJson("/getLastWechsler", {
+      automatCode: code,
       stadt: currentUser?.stadt || null
     });
-    if (!d?.ok) return null;
-    return Number(d.wechslerEinEuroAlt) || 0;
+    return d?.ok ? Number(d.wechslerEinEuroAlt) || 0 : null;
   } catch {
     return null;
   }
 }
 
 async function handleAutomatChange() {
-  const automatSelect = document.getElementById("automatSelect");
-  const einzahlSection = document.getElementById("einzahlSection");
-  const selectedCode = automatSelect?.value || "";
-  const automat = automatenCache.find(a => a.automatCode === selectedCode);
+  const code = document.getElementById("automatSelect").value;
+  const automat = automatenCache.find(a => a.automatCode === code);
+  const section = document.getElementById("einzahlSection");
 
   if (!automat) {
-    renderBestandBox(null);
-    if (einzahlSection) einzahlSection.style.display = "none";
+    section.style.display = "none";
+    renderBestand(null);
     return;
   }
 
-  if (einzahlSection) einzahlSection.style.display = "block";
-  renderBestandBox(automat);
+  section.style.display = "block";
+  renderBestand(automat);
 
-  const wechslerAlt = await loadLastWechsler(automat.automatCode);
+  const w = await loadLastWechsler(code);
   const info = document.getElementById("wechslerAltInfo");
   if (info) {
     info.textContent =
-      wechslerAlt === null
-        ? "Wechsler (alt): nicht verfügbar"
-        : `Wechsler (alt): ${wechslerAlt} €`;
+      w === null ? "Wechsler (alt): nicht verfügbar" : `Wechsler (alt): ${w} €`;
   }
 }
 
 function handleCenterChange() {
-  const centerSelect = document.getElementById("centerSelect");
+  const centerKey = document.getElementById("centerSelect").value;
   const automatSelect = document.getElementById("automatSelect");
-  const einzahlSection = document.getElementById("einzahlSection");
+  const section = document.getElementById("einzahlSection");
 
-  const selectedOption = centerSelect?.selectedOptions?.[0] || null;
-  const centerKey =
-    selectedOption?.dataset?.key ||
-    normalizeCenter(centerSelect?.value || "");
-  const centerLabel = normalizeCenter(selectedOption?.textContent || "");
+  const automaten = automatenByCenter.get(centerKey) || [];
 
-  let automaten = centerKey ? automatenByCenter.get(centerKey) || [] : [];
-
-  if (!automaten.length && (centerKey || centerLabel)) {
-    const lookupKey = centerKey || centerLabel;
-    automaten = automatenCache.filter(
-      automat => normalizeCenter(automat.center) === lookupKey
-    );
-  }
-
-  setSelectOptions(
+  setSelect(
     automatSelect,
-    automaten.map(a => ({
-      value: a.automatCode,
-      label: a.name
-    })),
+    automaten.map(a => ({ value: a.automatCode, label: a.name })),
     "Bitte Automat wählen"
   );
 
-  renderBestandBox(null);
-  if (einzahlSection) einzahlSection.style.display = "none";
+  section.style.display = "none";
+  renderBestand(null);
 }
 
 async function loadAutomatenData() {
@@ -191,122 +164,85 @@ async function loadAutomatenData() {
   const automatSelect = document.getElementById("automatSelect");
   const box = document.getElementById("bestandBox");
 
-  if (centerSelect) centerSelect.disabled = true;
-  if (automatSelect) automatSelect.disabled = true;
-  if (box) box.innerText = "Automaten werden geladen …";
+  box.innerText = "Automaten werden geladen …";
 
-  try {
-    const d = await postJsonWithFallback("/loadAutomaten", {
-      role: currentUser?.role,
-      name: currentUser?.name,
-      stadt: currentUser?.stadt
-    });
+  const d = await postJson("/loadAutomaten", {
+    role: currentUser?.role,
+    name: currentUser?.name,
+    stadt: currentUser?.stadt
+  });
 
-    automatenCache = Array.isArray(d?.automaten) ? d.automaten : [];
-    automatenByCenter = new Map();
-    reserveValue = Number(d?.reserve) || 0;
+  automatenCache = d?.automaten || [];
+  reserveValue = Number(d?.reserve) || 0;
+  automatenByCenter = new Map();
 
-    automatenCache.forEach(automat => {
-      const key = normalizeCenter(automat.center);
-      if (!key) return;
-      if (!automatenByCenter.has(key)) {
-        automatenByCenter.set(key, []);
-      }
-      automatenByCenter.get(key).push(automat);
-    });
+  automatenCache.forEach(a => {
+    const key = normalizeCenter(a.center);
+    if (!automatenByCenter.has(key)) automatenByCenter.set(key, []);
+    automatenByCenter.get(key).push(a);
+  });
 
-    const centersFromApi = d?.centers?.map(c => c.name).filter(Boolean) || [];
-    const centersFromAutomaten = Array.from(automatenByCenter.keys()).map(
-      key => automatenByCenter.get(key)?.[0]?.center || key
-    );
+  setSelect(
+    centerSelect,
+    Array.from(automatenByCenter.keys()).map(k => ({
+      value: k,
+      label: automatenByCenter.get(k)[0].center
+    })),
+    "Bitte Center wählen"
+  );
 
-    const centerMap = new Map();
-    [...centersFromApi, ...centersFromAutomaten].forEach(center => {
-      const key = normalizeCenter(center);
-      if (!key || centerMap.has(key)) return;
-      centerMap.set(key, center);
-    });
-
-    setSelectOptions(
-      centerSelect,
-      Array.from(centerMap.entries()).map(([key, label]) => ({
-        value: label,
-        label,
-        key
-      })),
-      "Bitte Center wählen"
-    );
-
-    setSelectOptions(automatSelect, [], "Bitte Automat wählen");
-    if (box) box.innerText = "Bitte Center auswählen.";
-  } catch {
-    if (box) box.innerText = "Fehler beim Laden der Automaten";
-  } finally {
-    if (centerSelect) centerSelect.disabled = false;
-    if (automatSelect) automatSelect.disabled = false;
-  }
+  setSelect(automatSelect, [], "Bitte Automat wählen");
+  box.innerText = "Bitte Center auswählen.";
 }
 
 /* =========================
    Firebase Storage Upload
 ========================= */
 async function uploadToStorage(file, folder) {
-  const ts = Date.now();
-  const safe = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
-  const path = `${folder}/${ts}_${safe}`;
+  const path = `${folder}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_")}`;
   const ref = window.storage.ref().child(path);
   await ref.put(file);
   return path;
 }
 
 /* =========================
-   Automat speichern
+   Einzahlung speichern
 ========================= */
 let einzahlSessionId = null;
 
 async function saveAutomatNow() {
   const status = document.getElementById("saveStatus");
-  status && (status.innerText = "");
-
   const foto = document.getElementById("fotoBestand")?.files?.[0];
+
   if (!foto) {
-    status && (status.innerText = "Bestandsfoto ist Pflicht.");
+    status.innerText = "Bestandsfoto fehlt";
     return;
   }
 
-  try {
-    status && (status.innerText = "Foto wird hochgeladen …");
-    const fotoBestandPath = await uploadToStorage(foto, "einzahlBestand");
+  status.innerText = "Speichern …";
 
-    const payload = {
-      automatCode: document.getElementById("automatSelect")?.value,
-      stadt: currentUser?.stadt,
-      teamleiter: currentUser?.name,
-      sessionId: einzahlSessionId,
-      scheine: Number(document.getElementById("scheineSumme")?.value || 0),
-      muenzen: Number(document.getElementById("muenzenSumme")?.value || 0),
-      einEuroEntnommen: Number(document.getElementById("einEuroEntnommen")?.value || 0),
-      wechslerNeu: Number(document.getElementById("wechslerEinEuroAlt")?.value || 0),
-      bestandFotoPath: fotoBestandPath
-    };
+  const fotoPath = await uploadToStorage(foto, "einzahlBestand");
 
-    status && (status.innerText = "Automat wird gespeichert …");
-    const d = await postJsonWithFallback("/submitAutomat", payload);
-    if (!d.ok) {
-      status && (status.innerText = d.error || "Fehler beim Speichern");
-      return;
-    }
+  const payload = {
+    automatCode: document.getElementById("automatSelect").value,
+    stadt: currentUser?.stadt,
+    teamleiter: currentUser?.name,
+    sessionId: einzahlSessionId,
+    scheine: Number(document.getElementById("scheineSumme").value || 0),
+    muenzen: Number(document.getElementById("muenzenSumme").value || 0),
+    einEuroEntnommen: Number(document.getElementById("einEuroEntnommen").value || 0),
+    wechslerNeu: Number(document.getElementById("wechslerEinEuroAlt").value || 0),
+    bestandFotoPath: fotoPath
+  };
 
-    einzahlSessionId = d.sessionId;
-    status && (status.innerText = "✅ Automat gespeichert");
-
-    ["scheineSumme","muenzenSumme","einEuroEntnommen","wechslerEinEuroAlt"].forEach(id=>{
-      const el=document.getElementById(id); if(el) el.value="";
-    });
-    document.getElementById("fotoBestand").value = "";
-  } catch {
-    status && (status.innerText = "Serverfehler beim Speichern");
+  const d = await postJson("/submitAutomat", payload);
+  if (!d?.ok) {
+    status.innerText = d?.error || "Fehler";
+    return;
   }
+
+  einzahlSessionId = d.sessionId;
+  status.innerText = "✅ Automat gespeichert";
 }
 
 /* =========================
@@ -314,73 +250,46 @@ async function saveAutomatNow() {
 ========================= */
 async function submitBelegeOnly() {
   const status = document.getElementById("auswertungStatus");
-  status && (status.innerText = "");
-
   if (!einzahlSessionId) {
-    status && (status.innerText = "Keine aktive Einzahlung");
+    status.innerText = "Keine aktive Einzahlung";
     return;
   }
 
   const f1 = document.getElementById("fotoBeleg1")?.files?.[0];
   if (!f1) {
-    status && (status.innerText = "Mindestens ein Beleg ist Pflicht");
+    status.innerText = "Mindestens ein Beleg nötig";
     return;
   }
 
-  try {
-    status && (status.innerText = "Belege werden hochgeladen …");
-    const beleg1Path = await uploadToStorage(f1, "einzahlBelege");
-    const f2 = document.getElementById("fotoBeleg2")?.files?.[0];
-    const beleg2Path = f2 ? await uploadToStorage(f2, "einzahlBelege") : null;
+  const p1 = await uploadToStorage(f1, "einzahlBelege");
+  const f2 = document.getElementById("fotoBeleg2")?.files?.[0];
+  const p2 = f2 ? await uploadToStorage(f2, "einzahlBelege") : null;
 
-    const payload = {
-      sessionId: einzahlSessionId,
-      stadt: currentUser?.stadt,
-      teamleiter: currentUser?.name,
-      beleg1Path,
-      beleg2Path
-    };
+  const d = await postJson("/submitBelege", {
+    sessionId: einzahlSessionId,
+    stadt: currentUser?.stadt,
+    teamleiter: currentUser?.name,
+    beleg1Path: p1,
+    beleg2Path: p2
+  });
 
-    const d = await postJsonWithFallback("/submitBelege", payload);
-    if (!d.ok) {
-      status && (status.innerText = d.error || "Fehler beim Abschluss");
-      return;
-    }
-
-    status && (status.innerText = "✅ Einzahlung abgeschlossen");
-    einzahlSessionId = null;
-  } catch {
-    status && (status.innerText = "Serverfehler beim Abschluss");
-  }
+  status.innerText = d?.ok ? "✅ Einzahlung abgeschlossen" : "Fehler";
+  if (d?.ok) einzahlSessionId = null;
 }
 
-/* =========================
-   Legacy Button Handler
-========================= */
 function submitEinzahlung() {
-  const auswertungVisible =
-    document.getElementById("viewAuswertung")?.style.display === "block";
-  if (auswertungVisible) {
-    submitBelegeOnly();
-  } else {
-    saveAutomatNow();
-  }
+  const auswertung =
+    document.getElementById("viewAuswertung").style.display === "block";
+  auswertung ? submitBelegeOnly() : saveAutomatNow();
 }
 window.submitEinzahlung = submitEinzahlung;
 
 /* =========================
-   Event-Bindings
+   Event Bindings
 ========================= */
 document.addEventListener("DOMContentLoaded", () => {
-  const btnSave = document.getElementById("btnSave");
-  if (btnSave) btnSave.onclick = saveAutomatNow;
-
-  const btnFinish = document.querySelector("#viewAuswertung button");
-  if (btnFinish) btnFinish.onclick = submitBelegeOnly;
-
-  const centerSelect = document.getElementById("centerSelect");
-  if (centerSelect) centerSelect.onchange = handleCenterChange;
-
-  const automatSelect = document.getElementById("automatSelect");
-  if (automatSelect) automatSelect.onchange = handleAutomatChange;
+  document.getElementById("centerSelect").onchange = handleCenterChange;
+  document.getElementById("automatSelect").onchange = handleAutomatChange;
+  document.getElementById("btnSave").onclick = saveAutomatNow;
+  document.querySelector("#viewAuswertung button").onclick = submitBelegeOnly;
 });
