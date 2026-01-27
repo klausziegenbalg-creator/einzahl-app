@@ -13,6 +13,14 @@
         "function": "verifyPin"
       },
       {
+        "source": "/loadAutomaten",
+        "function": "loadAutomaten"
+      },
+      {
+        "source": "/getLastWechsler",
+        "function": "getLastWechsler"
+      },
+      {
         "source": "/submitAutomat",
         "function": "submitAutomat"
       },
