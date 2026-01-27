@@ -8,58 +8,75 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 exports.verifyPin = functions
-  .region("europe-west3")
+  .region("us-central1")
   .https.onRequest(async (req, res) => {
-
-    // --- CORS HARD FIX ---
+    // CORS
     res.set("Access-Control-Allow-Origin", "*");
     res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
     res.set("Access-Control-Allow-Headers", "Content-Type");
 
     if (req.method === "OPTIONS") {
-      return res.status(204).send(""); // <<< WICHTIG
+      return res.status(204).send("");
     }
 
     try {
-      const pin = String(req.body?.pin || "").trim();
-
+      const { pin } = req.body || {};
       if (!pin) {
         return res.json({ ok: false, error: "PIN fehlt" });
       }
 
+      // 1) PIN prüfen
       const snap = await db
         .collection("pins")
-        .where("pin", "==", pin)
+        .where("pin", "==", String(pin).trim())
         .limit(1)
         .get();
 
       if (snap.empty) {
-        return res.json({ ok: false, error: "PIN ungültig" });
+        return res.json({ ok: false, error: "PIN falsch" });
       }
 
-      const user = snap.docs[0].data();
-      const erlaubteRollen = ["teamleiter", "admin", "supervisor"];
+      const pinData = snap.docs[0].data() || {};
+      const name = (pinData.name || "").toString().trim();
+      const role = (pinData.role || "").toString().trim().toLowerCase();
 
-      if (!erlaubteRollen.includes(user.role)) {
-        return res.json({
-          ok: false,
-          error: "Keine Berechtigung"
+      if (!name || !role) {
+        return res.json({ ok: false, error: "PIN unvollständig" });
+      }
+
+      // 2) Stadt aus Automaten ableiten (wie in Reiniger-App)
+      let stadt = "";
+
+      // Admin darf alles
+      if (role === "admin") {
+        stadt = "";
+      } else {
+        const autoSnap = await db.collection("automaten").get();
+        autoSnap.forEach(doc => {
+          const a = doc.data() || {};
+          if (role === "teamleiter" && (a.leitung || "").toString().trim() === name && a.stadt) {
+            stadt = a.stadt;
+          }
+          if (role === "mitarbeiter" && (a.mitarbeiter || "").toString().trim() === name && a.stadt) {
+            stadt = a.stadt;
+          }
         });
+
+        // Fallback: falls pins-Dokument eine Stadt enthält
+        if (!stadt && pinData.stadt) {
+          stadt = pinData.stadt;
+        }
       }
 
-      // --- IMMER RESPONSE ---
       return res.json({
         ok: true,
-        role: user.role,
-        name: user.name || null,
-        stadt: user.stadt || null
+        name,
+        role,
+        stadt
       });
 
     } catch (err) {
-      console.error("verifyPin fatal", err);
-      return res.status(500).json({
-        ok: false,
-        error: "Serverfehler"
-      });
+      console.error("verifyPin error:", err);
+      return res.status(500).json({ ok: false, error: "Serverfehler" });
     }
   });

@@ -83,9 +83,7 @@ function setSelectOptions(selectEl, options, placeholder) {
     const el = document.createElement("option");
     el.value = opt.value;
     el.textContent = opt.label;
-    if (opt.key) {
-      el.dataset.key = opt.key;
-    }
+    if (opt.key) el.dataset.key = opt.key;
     selectEl.appendChild(el);
   });
 }
@@ -108,7 +106,11 @@ function renderBestandBox(automat, wechslerAlt = null) {
     <div>Scheine Bestand: ${automat.bestandScheine} €</div>
     <div>Münzen Bestand: ${automat.bestandMuenzen} €</div>
     <div>1€ Bestand: ${automat.bestandEinEuro} €</div>
-    <div id="wechslerAltInfo">${wechslerAlt === null ? "Wechsler (alt): wird geladen …" : `Wechsler (alt): ${wechslerAlt} €`}</div>
+    <div id="wechslerAltInfo">${
+      wechslerAlt === null
+        ? "Wechsler (alt): wird geladen …"
+        : `Wechsler (alt): ${wechslerAlt} €`
+    }</div>
     ${reserveLine}
   `;
 }
@@ -154,14 +156,16 @@ async function handleAutomatChange() {
 function handleCenterChange() {
   const centerSelect = document.getElementById("centerSelect");
   const automatSelect = document.getElementById("automatSelect");
+  const einzahlSection = document.getElementById("einzahlSection");
+
   const selectedOption = centerSelect?.selectedOptions?.[0] || null;
   const centerKey =
     selectedOption?.dataset?.key ||
     normalizeCenter(centerSelect?.value || "");
   const centerLabel = normalizeCenter(selectedOption?.textContent || "");
-  const einzahlSection = document.getElementById("einzahlSection");
 
   let automaten = centerKey ? automatenByCenter.get(centerKey) || [] : [];
+
   if (!automaten.length && (centerKey || centerLabel)) {
     const lookupKey = centerKey || centerLabel;
     automaten = automatenCache.filter(
@@ -215,14 +219,12 @@ async function loadAutomatenData() {
     const centersFromAutomaten = Array.from(automatenByCenter.keys()).map(
       key => automatenByCenter.get(key)?.[0]?.center || key
     );
-    const centerMap = new Map();
 
+    const centerMap = new Map();
     [...centersFromApi, ...centersFromAutomaten].forEach(center => {
       const key = normalizeCenter(center);
-      if (!key) return;
-      if (!centerMap.has(key)) {
-        centerMap.set(key, center);
-      }
+      if (!key || centerMap.has(key)) return;
+      centerMap.set(key, center);
     });
 
     setSelectOptions(
@@ -234,10 +236,10 @@ async function loadAutomatenData() {
       })),
       "Bitte Center wählen"
     );
-    setSelectOptions(automatSelect, [], "Bitte Automat wählen");
 
+    setSelectOptions(automatSelect, [], "Bitte Automat wählen");
     if (box) box.innerText = "Bitte Center auswählen.";
-  } catch (err) {
+  } catch {
     if (box) box.innerText = "Fehler beim Laden der Automaten";
   } finally {
     if (centerSelect) centerSelect.disabled = false;
@@ -302,7 +304,7 @@ async function saveAutomatNow() {
       const el=document.getElementById(id); if(el) el.value="";
     });
     document.getElementById("fotoBestand").value = "";
-  } catch (e) {
+  } catch {
     status && (status.innerText = "Serverfehler beim Speichern");
   }
 }
@@ -367,7 +369,7 @@ function submitEinzahlung() {
 window.submitEinzahlung = submitEinzahlung;
 
 /* =========================
-   Event-Bindings (sicher)
+   Event-Bindings
 ========================= */
 document.addEventListener("DOMContentLoaded", () => {
   const btnSave = document.getElementById("btnSave");
