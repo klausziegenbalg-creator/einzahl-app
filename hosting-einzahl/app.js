@@ -82,7 +82,9 @@ function normalizeCenter(value) {
 
 function setSelectOptions(selectEl, options, placeholder) {
   if (!selectEl) return;
+
   selectEl.innerHTML = "";
+
   const ph = document.createElement("option");
   ph.value = "";
   ph.textContent = placeholder;
@@ -92,7 +94,6 @@ function setSelectOptions(selectEl, options, placeholder) {
     const el = document.createElement("option");
     el.value = opt.value;
     el.textContent = opt.label;
-    if (opt.key) el.dataset.key = opt.key; // bleibt kompatibel
     selectEl.appendChild(el);
   });
 }
@@ -110,15 +111,12 @@ function renderBestandBox(automat, wechslerAlt = null) {
     ? `<div>Reserve: ${reserveValue} €</div>`
     : "";
 
-  // ✅ Anzeige IMMER über automatCode
-  const title = automat.automatCode || "";
-
   box.innerHTML = `
-    <div><b>${title}</b></div>
+    <div><b>${automat.automatCode || ""}</b></div>
     <div>Center: ${automat.center || ""}</div>
-    <div>Scheine Bestand: ${Number(automat.bestandScheine ?? 0)} €</div>
-    <div>Münzen Bestand: ${Number(automat.bestandMuenzen ?? 0)} €</div>
-    <div>1€ Bestand: ${Number(automat.bestandEinEuro ?? 0)} €</div>
+    <div>Scheine Bestand: ${Number(automat.bestandScheine || 0)} €</div>
+    <div>Münzen Bestand: ${Number(automat.bestandMuenzen || 0)} €</div>
+    <div>1€ Bestand: ${Number(automat.bestandEinEuro || 0)} €</div>
     <div id="wechslerAltInfo">${
       wechslerAlt === null
         ? "Wechsler (alt): wird geladen …"
@@ -146,7 +144,6 @@ async function handleAutomatChange() {
   const einzahlSection = document.getElementById("einzahlSection");
   const selectedCode = automatSelect?.value || "";
 
-  // ✅ Auswahl IMMER über automatCode
   const automat = automatenCache.find(a => a.automatCode === selectedCode);
 
   if (!automat) {
@@ -173,21 +170,11 @@ function handleCenterChange() {
   const automatSelect = document.getElementById("automatSelect");
   const einzahlSection = document.getElementById("einzahlSection");
 
-  const selectedOption = centerSelect?.selectedOptions?.[0] || null;
-  const centerKey =
-    selectedOption?.dataset?.key ||
-    normalizeCenter(centerSelect?.value || "");
-  const centerLabel = normalizeCenter(selectedOption?.textContent || "");
+  const centerKey = normalizeCenter(centerSelect.value);
+  const automaten = centerKey
+    ? automatenByCenter.get(centerKey) || []
+    : [];
 
-  let automaten = centerKey ? automatenByCenter.get(centerKey) || [] : [];
-  if (!automaten.length && (centerKey || centerLabel)) {
-    const lookupKey = centerKey || centerLabel;
-    automaten = automatenCache.filter(
-      a => normalizeCenter(a.center) === lookupKey
-    );
-  }
-
-  // ✅ Dropdown-Label = automatCode (nicht name)
   setSelectOptions(
     automatSelect,
     automaten.map(a => ({
@@ -224,31 +211,25 @@ async function loadAutomatenData() {
     automatenCache.forEach(a => {
       const key = normalizeCenter(a.center);
       if (!key) return;
-      if (!automatenByCenter.has(key)) automatenByCenter.set(key, []);
+      if (!automatenByCenter.has(key)) {
+        automatenByCenter.set(key, []);
+      }
       automatenByCenter.get(key).push(a);
     });
 
-    // Centerliste stabil aus den echten Centers
-    const centerMap = new Map();
-    automatenCache.forEach(a => {
-      const label = a.center || "Unbekannt";
-      const key = normalizeCenter(label);
-      if (!key || centerMap.has(key)) return;
-      centerMap.set(key, label);
+    const centers = [];
+    automatenByCenter.forEach((list, key) => {
+      if (list.length) {
+        centers.push({
+          value: list[0].center,
+          label: list[0].center
+        });
+      }
     });
 
-    // ✅ Center value = Label (wie vorher), zusätzlich dataset.key für robustes Mapping
-    setSelectOptions(
-      centerSelect,
-      Array.from(centerMap.entries()).map(([key, label]) => ({
-        value: label,
-        label,
-        key
-      })),
-      "Bitte Center wählen"
-    );
-
+    setSelectOptions(centerSelect, centers, "Bitte Center wählen");
     setSelectOptions(automatSelect, [], "Bitte Automat wählen");
+
     if (box) box.innerText = "Bitte Center auswählen.";
   } catch {
     if (box) box.innerText = "Fehler beim Laden der Automaten";
@@ -256,9 +237,7 @@ async function loadAutomatenData() {
     if (centerSelect) centerSelect.disabled = false;
     if (automatSelect) automatSelect.disabled = false;
   }
-}
-
-/* =========================
+}/* =========================
    Firebase Storage Upload
 ========================= */
 async function uploadToStorage(file, folder) {
