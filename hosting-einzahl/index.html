@@ -1,91 +1,124 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
   <title>Einzahl App</title>
-  <link rel="stylesheet" href="styles.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
   <header class="header">
-    <div class="header-inner">
-
-      <img src="logo.png" alt="Automatenservice Logo" class="logo" />
-
-      <div class="header-app-title">Einzahl App</div>
-
-      <div class="header-title">
-        Automatenservice Schiemann &amp; Automatenservice Albrecht
-      </div>
-
+    <div class="container header-inner">
+      <img src="Logo.png" alt="Automatenservice Logo" class="logo">
+      <div class="header-title">Automatenservice Schiemann & Automatenservice Albrecht</div>
     </div>
   </header>
 
   <main class="container">
 
-    <!-- 🔑 PIN -->
     <section id="pinSection" class="card">
       <h2>Anmeldung</h2>
-
       <label for="pinInput">PIN</label>
-      <input id="pinInput" type="password" autocomplete="off" />
-
+      <input type="password" id="pinInput">
       <button type="button" onclick="verifyPin()">Anmelden</button>
-
       <div id="pinStatus" class="status"></div>
     </section>
 
-    <!-- ✅ AUSWAHL (nach Login sichtbar) -->
-    <section id="selectSection" class="card" style="display:none">
-      <h2>Auswahl</h2>
+    <section id="appSection" class="card" style="display:none">
+      <div class="tabs">
+        <button id="tabEinzahlung" class="tab active" type="button" onclick="showTab('einzahlung')">Einzahlung</button>
+        <button id="tabAuswertung" class="tab" type="button" onclick="showTab('auswertung')">Zusammenfassung</button>
+      </div>
 
-      <label for="centerSelect">Center</label>
-      <select id="centerSelect"></select>
+      <div id="viewEinzahlung">
 
-      <label for="automatSelect">Automat</label>
-      <select id="automatSelect" disabled></select>
+        <div class="subcard">
+          <h2>Auswahl</h2>
+          <label for="centerSelect">Center</label>
+          <select id="centerSelect"></select>
+          <label for="automatSelect">Automat</label>
+          <select id="automatSelect"></select>
+          <div id="bestandBox" class="box"></div>
+        </div>
 
-      <div id="bestandBox" class="box"></div>
-    </section>
+        <div id="einzahlSection" class="subcard" style="display:none">
+          <h2>Entnahme</h2>
 
-    <!-- ✅ EINZAHLUNG -->
-    <section id="einzahlSection" class="card" style="display:none">
-      <h2>Einzahlung</h2>
+          <label for="scheineSumme">Scheine (€)</label>
+          <input id="scheineSumme" type="number">
 
-      <label>Scheine (€)</label>
-      <input id="scheineSumme" type="number" step="0.01">
+          <label for="muenzenSumme">Münzen gesamt (€)</label>
+          <input id="muenzenSumme" type="number">
 
-      <label>Münzen gesamt (€)</label>
-      <input id="muenzenSumme" type="number" step="0.01">
+          <label for="einEuroEntnommen">Entnommene 1€ Münzen (€)</label>
+          <input id="einEuroEntnommen" type="number">
 
-      <label>Entnommene 1€ Münzen</label>
-      <input id="einEuroEntnommen" type="number">
+          <label for="fotoBestand"><b>📸 Bestandsfoto (Pflicht)</b></label>
+          <input id="fotoBestand" type="file" accept="image/*" capture="environment">
+          <small>Bitte zuerst ein Foto vom Bestand machen oder auswählen, dann Münzen hinzurechnen und eingeben.</small>
+          <img id="previewBestand" class="photo-preview">
 
-      <h3>1€ Verteilung</h3>
+          <h2>Wechsler</h2>
+          <label for="wechslerEinEuroAlt">1€ Bestand im Wechsler (NEU – eingeben)</label>
+          <input id="wechslerEinEuroAlt" type="number">
 
-      <label>→ Automat</label>
-      <input id="einEuroAutomat" type="number">
+          <button id="btnSave" type="button" onclick="submitEinzahlung()">➕ Automat speichern</button>
+          <div id="saveStatus" class="status"></div>
+        </div>
 
-      <label>→ Reserve</label>
-      <input id="einEuroReserve" type="number">
+      </div>
 
-      <h3>Wechsler</h3>
+      <div id="viewAuswertung" style="display:none">
+        <div class="subcard">
+          <h2>Zusammenfassung</h2>
+          <div id="auswertungStatus" class="status"></div>
+        </div>
 
-      <label>1€ Bestand (ALT)</label>
-      <input id="wechslerEinEuroAlt" type="number">
+        <div class="subcard">
+          <div id="auswertungList" class="list"></div>
+        </div>
 
-      <button type="button" onclick="submitEinzahlung()">Speichern</button>
+        <div class="subcard">
+          <h2>Belege</h2>
 
-      <div id="saveStatus" class="status"></div>
+          <div class="photo-grid">
+            <div class="photo-item">
+              <label for="fotoBeleg1">Einzahlbeleg Foto 1 (Pflicht)</label>
+              <input id="fotoBeleg1" type="file" accept="image/*" capture="environment">
+              <img id="previewBeleg1" class="photo-preview">
+            </div>
 
-      <div class="result">
-        <div>Neuer Wechslerbestand: <b><span id="resultWechslerNeu">–</span> €</b></div>
-        <div>Differenz: <b><span id="resultDifferenz">–</span> €</b></div>
+            <div class="photo-item">
+              <label for="fotoBeleg2">Einzahlbeleg Foto 2 (optional)</label>
+              <input id="fotoBeleg2" type="file" accept="image/*" capture="environment">
+              <img id="previewBeleg2" class="photo-preview">
+            </div>
+          </div>
+
+          <button type="button" onclick="submitEinzahlung()">💾 Abschließen</button>
+        </div>
       </div>
     </section>
-
   </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-storage-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBo-pt3krDP9c5AxojmWaHVqPkoqmupOvA",
+      authDomain: "digitales-bordbuch.firebaseapp.com",
+      projectId: "digitales-bordbuch",
+      storageBucket: "digitales-bordbuch.appspot.com",
+      messagingSenderId: "612073997080",
+      appId: "1:612073997080:web:762a85694716da8f84546d"
+    };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    window.storage = firebase.storage();
+    window.db = firebase.firestore();
+  </script>
 
   <script src="app.js"></script>
 </body>

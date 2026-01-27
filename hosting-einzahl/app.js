@@ -1,187 +1,176 @@
-// ===============================
-// Konfiguration
-// ===============================
-const VERIFY_PIN_URL =
-  "https://us-central1-digitales-bordbuch.cloudfunctions.net/verifyPin";
-const LOAD_AUTOMATEN_URL =
-  "https://us-central1-digitales-bordbuch.cloudfunctions.net/loadAutomaten";
-const SUBMIT_EINZAHL_URL =
-  "https://us-central1-digitales-bordbuch.cloudfunctions.net/submitEinzahlung";
 
-// ===============================
-// Globaler State
-// ===============================
-let currentUser = null;
-let automaten = [];
-let selectedAutomat = null;
+/************************************************
+ * Einzahl App – vollständige app.js (stabil)
+ ************************************************/
 
-// ===============================
-// Helpers
-// ===============================
-function setStatus(id, msg, isError = false) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.innerText = msg || "";
-  el.className = "status" + (isError ? " error" : "");
-}
-
-async function postJson(url, payload) {
-  const res = await fetch(url, {
+/* =========================
+   Netzwerk-Helper
+========================= */
+async function postJsonWithFallback(path, payload) {
+  const res = await fetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
   });
-  return res.json();
+  if (!res.ok) throw new Error("Request failed");
+  return await res.json();
 }
 
-// ===============================
-// PIN Login
-// ===============================
-async function verifyPin() {
-  const pin = document.getElementById("pinInput").value.trim();
+/* =========================
+   Login / PIN
+========================= */
+function verifyPin() {
+  const pinInput = document.getElementById("pinInput");
+  const statusEl = document.getElementById("pinStatus");
+  const pin = (pinInput?.value || "").trim();
+
   if (!pin) {
-    setStatus("pinStatus", "Bitte PIN eingeben", true);
+    statusEl && (statusEl.innerText = "Bitte PIN eingeben");
     return;
   }
 
-  setStatus("pinStatus", "PIN wird geprüft …");
+  statusEl && (statusEl.innerText = "PIN wird geprüft …");
 
-  try {
-    const data = await postJson(VERIFY_PIN_URL, { pin });
+  postJsonWithFallback("/verifyPin", { pin })
+    .then(d => {
+      if (!d || d.ok !== true) {
+        statusEl && (statusEl.innerText = d?.error || "PIN ungültig");
+        return;
+      }
+      window.currentUser = d;
+      document.getElementById("pinSection").style.display = "none";
+      document.getElementById("appSection").style.display = "block";
+    })
+    .catch(() => {
+      statusEl && (statusEl.innerText = "Server nicht erreichbar");
+    });
+}
+window.verifyPin = verifyPin;
 
-    if (!data || !data.ok) {
-      setStatus("pinStatus", "PIN ungültig", true);
-      return;
-    }
-
-    // ✅ Login erfolgreich
-    currentUser = data;
-
-    // 🔑 WICHTIG: UI umschalten
-    document.getElementById("pinSection").style.display = "none";
-    document.getElementById("selectSection").style.display = "block";
-
-    // Automaten laden
-    await loadAutomaten();
-
-  } catch (err) {
-    console.error(err);
-    setStatus("pinStatus", "Serverfehler bei PIN-Prüfung", true);
-  }
+/* =========================
+   Tabs
+========================= */
+function showTab(tab) {
+  document.getElementById("viewEinzahlung").style.display =
+    tab === "einzahlung" ? "block" : "none";
+  document.getElementById("viewAuswertung").style.display =
+    tab === "auswertung" ? "block" : "none";
 }
 
-// ===============================
-// Automaten laden
-// ===============================
-async function loadAutomaten() {
-  const centerSelect = document.getElementById("centerSelect");
-  const automatSelect = document.getElementById("automatSelect");
-  const bestandBox = document.getElementById("bestandBox");
-
-  centerSelect.innerHTML = "";
-  automatSelect.innerHTML = "";
-  automatSelect.disabled = true;
-  bestandBox.innerHTML = "";
-  selectedAutomat = null;
-
-  try {
-    const data = await postJson(LOAD_AUTOMATEN_URL, {
-      role: currentUser.role,
-      stadt: currentUser.stadt
-    });
-
-    automaten = data.automaten || [];
-    if (!automaten.length) {
-      bestandBox.innerText = "Keine Automaten gefunden";
-      return;
-    }
-
-    // Center gruppieren
-    const centers = {};
-    automaten.forEach(a => {
-      if (!centers[a.center]) centers[a.center] = [];
-      centers[a.center].push(a);
-    });
-
-    // Center Select
-    centerSelect.innerHTML =
-      `<option value="" disabled selected>Center wählen</option>`;
-    Object.keys(centers).forEach(center => {
-      const opt = document.createElement("option");
-      opt.value = center;
-      opt.textContent = center;
-      centerSelect.appendChild(opt);
-    });
-
-    centerSelect.onchange = () => {
-      const center = centerSelect.value;
-      automatSelect.innerHTML =
-        `<option value="" disabled selected>Automat wählen</option>`;
-      centers[center].forEach(a => {
-        const opt = document.createElement("option");
-        opt.value = a.automatCode;
-        opt.textContent = a.name || a.automatCode;
-        automatSelect.appendChild(opt);
-      });
-      automatSelect.disabled = false;
-    };
-
-    automatSelect.onchange = () => {
-      const code = automatSelect.value;
-      selectedAutomat = automaten.find(a => a.automatCode === code);
-      if (!selectedAutomat) return;
-
-      bestandBox.innerHTML =
-        `<b>Letzter Wechslerbestand:</b> ${selectedAutomat.wechslerEinEuroBestand || 0} €`;
-
-      document.getElementById("einzahlSection").style.display = "block";
-    };
-
-  } catch (err) {
-    console.error(err);
-    bestandBox.innerText = "Fehler beim Laden der Automaten";
-  }
+/* =========================
+   Firebase Storage Upload
+========================= */
+async function uploadToStorage(file, folder) {
+  const ts = Date.now();
+  const safe = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+  const path = `${folder}/${ts}_${safe}`;
+  const ref = window.storage.ref().child(path);
+  await ref.put(file);
+  return path;
 }
 
-// ===============================
-// Einzahlung speichern
-// ===============================
-async function submitEinzahlung() {
-  if (!selectedAutomat) {
-    setStatus("saveStatus", "Bitte Automat wählen", true);
+/* =========================
+   Automat speichern
+========================= */
+let einzahlSessionId = null;
+
+async function saveAutomatNow() {
+  const status = document.getElementById("saveStatus");
+  status && (status.innerText = "");
+
+  const foto = document.getElementById("fotoBestand")?.files?.[0];
+  if (!foto) {
+    status && (status.innerText = "Bestandsfoto ist Pflicht.");
     return;
   }
 
-  setStatus("saveStatus", "Speichern …");
-
   try {
+    status && (status.innerText = "Foto wird hochgeladen …");
+    const fotoBestandPath = await uploadToStorage(foto, "einzahlBestand");
+
     const payload = {
-      automatCode: selectedAutomat.automatCode,
-      scheineSumme: Number(document.getElementById("scheineSumme").value) || 0,
-      muenzenSumme: Number(document.getElementById("muenzenSumme").value) || 0,
-      einEuroEntnommen: Number(document.getElementById("einEuroEntnommen").value) || 0,
-      einEuroAutomat: Number(document.getElementById("einEuroAutomat").value) || 0,
-      einEuroReserve: Number(document.getElementById("einEuroReserve").value) || 0,
-      wechslerEinEuroAlt:
-        Number(document.getElementById("wechslerEinEuroAlt").value) || 0
+      automatCode: document.getElementById("automatSelect")?.value,
+      stadt: currentUser?.stadt,
+      teamleiter: currentUser?.name,
+      sessionId: einzahlSessionId,
+      scheine: Number(document.getElementById("scheineSumme")?.value || 0),
+      muenzen: Number(document.getElementById("muenzenSumme")?.value || 0),
+      einEuroEntnommen: Number(document.getElementById("einEuroEntnommen")?.value || 0),
+      wechslerNeu: Number(document.getElementById("wechslerEinEuroAlt")?.value || 0),
+      bestandFotoPath: fotoBestandPath
     };
 
-    const data = await postJson(SUBMIT_EINZAHL_URL, payload);
-
-    if (!data || !data.ok) {
-      setStatus("saveStatus", "Fehler beim Speichern", true);
+    status && (status.innerText = "Automat wird gespeichert …");
+    const d = await postJsonWithFallback("/submitAutomat", payload);
+    if (!d.ok) {
+      status && (status.innerText = d.error || "Fehler beim Speichern");
       return;
     }
 
-    document.getElementById("resultWechslerNeu").innerText =
-      data.wechslerEinEuroBestandNeu;
-    document.getElementById("resultDifferenz").innerText =
-      data.bestanddifferenz;
+    einzahlSessionId = d.sessionId;
+    status && (status.innerText = "✅ Automat gespeichert");
 
-    setStatus("saveStatus", "✅ Gespeichert");
-
-  } catch (err) {
-    console.error(err);
-    setStatus("saveStatus", "Serverfehler beim Speichern", true);
+    ["scheineSumme","muenzenSumme","einEuroEntnommen","wechslerEinEuroAlt"].forEach(id=>{
+      const el=document.getElementById(id); if(el) el.value="";
+    });
+    document.getElementById("fotoBestand").value = "";
+  } catch (e) {
+    status && (status.innerText = "Serverfehler beim Speichern");
   }
 }
+
+/* =========================
+   Belege abschließen
+========================= */
+async function submitBelegeOnly() {
+  const status = document.getElementById("auswertungStatus");
+  status && (status.innerText = "");
+
+  if (!einzahlSessionId) {
+    status && (status.innerText = "Keine aktive Einzahlung");
+    return;
+  }
+
+  const f1 = document.getElementById("fotoBeleg1")?.files?.[0];
+  if (!f1) {
+    status && (status.innerText = "Mindestens ein Beleg ist Pflicht");
+    return;
+  }
+
+  try {
+    status && (status.innerText = "Belege werden hochgeladen …");
+    const beleg1Path = await uploadToStorage(f1, "einzahlBelege");
+    const f2 = document.getElementById("fotoBeleg2")?.files?.[0];
+    const beleg2Path = f2 ? await uploadToStorage(f2, "einzahlBelege") : null;
+
+    const payload = {
+      sessionId: einzahlSessionId,
+      stadt: currentUser?.stadt,
+      teamleiter: currentUser?.name,
+      beleg1Path,
+      beleg2Path
+    };
+
+    const d = await postJsonWithFallback("/submitBelege", payload);
+    if (!d.ok) {
+      status && (status.innerText = d.error || "Fehler beim Abschluss");
+      return;
+    }
+
+    status && (status.innerText = "✅ Einzahlung abgeschlossen");
+    einzahlSessionId = null;
+  } catch {
+    status && (status.innerText = "Serverfehler beim Abschluss");
+  }
+}
+
+/* =========================
+   Event-Bindings (sicher)
+========================= */
+document.addEventListener("DOMContentLoaded", () => {
+  const btnSave = document.getElementById("btnSave");
+  if (btnSave) btnSave.onclick = saveAutomatNow;
+
+  const btnFinish = document.querySelector("#viewAuswertung button");
+  if (btnFinish) btnFinish.onclick = submitBelegeOnly;
+});
