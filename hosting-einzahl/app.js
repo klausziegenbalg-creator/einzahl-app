@@ -83,6 +83,9 @@ function setSelectOptions(selectEl, options, placeholder) {
     const el = document.createElement("option");
     el.value = opt.value;
     el.textContent = opt.label;
+    if (opt.key) {
+      el.dataset.key = opt.key;
+    }
     selectEl.appendChild(el);
   });
 }
@@ -151,10 +154,11 @@ async function handleAutomatChange() {
 function handleCenterChange() {
   const centerSelect = document.getElementById("centerSelect");
   const automatSelect = document.getElementById("automatSelect");
-  const centerKey = normalizeCenter(centerSelect?.value || "");
-  const centerLabel = normalizeCenter(
-    centerSelect?.selectedOptions?.[0]?.textContent || ""
-  );
+  const selectedOption = centerSelect?.selectedOptions?.[0] || null;
+  const centerKey =
+    selectedOption?.dataset?.key ||
+    normalizeCenter(centerSelect?.value || "");
+  const centerLabel = normalizeCenter(selectedOption?.textContent || "");
   const einzahlSection = document.getElementById("einzahlSection");
 
   let automaten = centerKey ? automatenByCenter.get(centerKey) || [] : [];
@@ -207,19 +211,26 @@ async function loadAutomatenData() {
       automatenByCenter.get(key).push(automat);
     });
 
+    const centersFromApi = d?.centers?.map(c => c.name).filter(Boolean) || [];
+    const centersFromAutomaten = Array.from(automatenByCenter.keys()).map(
+      key => automatenByCenter.get(key)?.[0]?.center || key
+    );
     const centerMap = new Map();
-    automatenCache.forEach(automat => {
-      const label = automat.center || "Unbekannt";
-      const key = normalizeCenter(label);
-      if (!key || centerMap.has(key)) return;
-      centerMap.set(key, label);
+
+    [...centersFromApi, ...centersFromAutomaten].forEach(center => {
+      const key = normalizeCenter(center);
+      if (!key) return;
+      if (!centerMap.has(key)) {
+        centerMap.set(key, center);
+      }
     });
 
     setSelectOptions(
       centerSelect,
       Array.from(centerMap.entries()).map(([key, label]) => ({
-        value: key,
-        label
+        value: label,
+        label,
+        key
       })),
       "Bitte Center wählen"
     );
