@@ -14,9 +14,10 @@ exports.loadAutomaten = functions
     cors(req, res, async () => {
       try {
         const { role, name, stadt } = req.body;
+        const erlaubteRollen = ["teamleiter", "admin", "supervisor"];
 
-        if (role !== "teamleiter") {
-          return res.status(403).json({ error: "Nur Teamleiter erlaubt" });
+        if (!erlaubteRollen.includes(role)) {
+          return res.status(403).json({ error: "Keine Berechtigung" });
         }
 
         let query = db.collection("automaten");
