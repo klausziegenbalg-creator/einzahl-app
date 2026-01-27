@@ -2,6 +2,24 @@
   "hosting": {
     "site": "einzahl",
     "public": "hosting-einzahl",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"]
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/verifyPin",
+        "function": "verifyPin"
+      },
+      {
+        "source": "/submitAutomat",
+        "function": "submitAutomat"
+      },
+      {
+        "source": "/submitBelege",
+        "function": "submitBelege"
+      }
+    ]
   }
 }
