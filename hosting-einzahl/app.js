@@ -63,6 +63,10 @@ function showTab(tab) {
 let automatenCache = [];
 let reserveValue = 0;
 
+function normalizeCenter(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
 function setSelectOptions(selectEl, options, placeholder) {
   if (!selectEl) return;
   selectEl.innerHTML = "";
@@ -142,11 +146,11 @@ async function handleAutomatChange() {
 function handleCenterChange() {
   const centerSelect = document.getElementById("centerSelect");
   const automatSelect = document.getElementById("automatSelect");
-  const center = centerSelect?.value || "";
+  const centerKey = centerSelect?.value || "";
   const einzahlSection = document.getElementById("einzahlSection");
 
-  const automaten = center
-    ? automatenCache.filter(a => a.center === center)
+  const automaten = centerKey
+    ? automatenCache.filter(a => normalizeCenter(a.center) === centerKey)
     : [];
 
   setSelectOptions(
@@ -181,13 +185,26 @@ async function loadAutomatenData() {
     automatenCache = Array.isArray(d?.automaten) ? d.automaten : [];
     reserveValue = Number(d?.reserve) || 0;
 
-    const centers =
-      d?.centers?.map(c => c.name).filter(Boolean) ||
-      Array.from(new Set(automatenCache.map(a => a.center).filter(Boolean)));
+    const centersFromApi = d?.centers?.map(c => c.name).filter(Boolean) || [];
+    const centersFromAutomaten = automatenCache
+      .map(a => a.center)
+      .filter(Boolean);
+    const centerMap = new Map();
+
+    [...centersFromApi, ...centersFromAutomaten].forEach(center => {
+      const key = normalizeCenter(center);
+      if (!key) return;
+      if (!centerMap.has(key)) {
+        centerMap.set(key, center);
+      }
+    });
 
     setSelectOptions(
       centerSelect,
-      centers.map(c => ({ value: c, label: c })),
+      Array.from(centerMap.entries()).map(([key, label]) => ({
+        value: key,
+        label
+      })),
       "Bitte Center wählen"
     );
     setSelectOptions(automatSelect, [], "Bitte Automat wählen");
