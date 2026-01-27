@@ -147,10 +147,15 @@ async function handleAutomatChange() {
 function handleCenterChange() {
   const centerSelect = document.getElementById("centerSelect");
   const automatSelect = document.getElementById("automatSelect");
-  const centerKey = centerSelect?.value || "";
+  const centerKey = normalizeCenter(centerSelect?.value || "");
   const einzahlSection = document.getElementById("einzahlSection");
 
-  const automaten = centerKey ? automatenByCenter.get(centerKey) || [] : [];
+  let automaten = centerKey ? automatenByCenter.get(centerKey) || [] : [];
+  if (!automaten.length && centerKey) {
+    automaten = automatenCache.filter(
+      automat => normalizeCenter(automat.center) === centerKey
+    );
+  }
 
   setSelectOptions(
     automatSelect,
@@ -210,8 +215,8 @@ async function loadAutomatenData() {
 
     setSelectOptions(
       centerSelect,
-      Array.from(centerMap.entries()).map(([key, label]) => ({
-        value: key,
+      Array.from(centerMap.entries()).map(([, label]) => ({
+        value: label,
         label
       })),
       "Bitte Center wählen"
