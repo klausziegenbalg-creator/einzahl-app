@@ -7,25 +7,19 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
-function toNumber(v) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function norm(s) {
-  return String(s || "").trim().toLowerCase();
-}
+const norm = v => String(v || "").trim().toLowerCase();
+const toNumber = v => Number.isFinite(Number(v)) ? Number(v) : 0;
 
 exports.loadAutomaten = functions.https.onRequest(async (req, res) => {
   try {
-    const { role, name, stadt } = req.body || {};
+    const { role, name } = req.body || {};
     if (!role) return res.json({ ok: false, error: "role fehlt" });
 
     const r = norm(role);
     let docs = [];
 
     // =========================
-    // ADMIN → ALLE AUTOMATEN
+    // ADMIN → ALLE
     // =========================
     if (r === "admin") {
       const snap = await db.collection("automaten").get();
@@ -33,30 +27,22 @@ exports.loadAutomaten = functions.https.onRequest(async (req, res) => {
     }
 
     // =========================
-    // TEAMLEITER → SEINE AUTOMATEN
-    // 1) wenn stadt mitkommt: nach stadt filtern
-    // 2) sonst (wie bei dir vorgesehen): nach leitung == name filtern
+    // TEAMLEITER → leitung
     // =========================
     else if (r === "teamleiter") {
-      if (stadt) {
-        const snap = await db.collection("automaten").where("stadt", "==", stadt).get();
-        docs = snap.docs;
-      } else {
-        if (!name) return res.json({ ok: false, error: "name fehlt (teamleiter)" });
+      if (!name) return res.json({ ok: false, error: "name fehlt" });
 
-        // Firestore ist case-sensitiv → robust wie Reiniger-App: alles holen & in JS filtern
-        const all = await db.collection("automaten").get();
-        const target = norm(name);
+      const all = await db.collection("automaten").get();
+      const target = norm(name);
 
-        docs = all.docs.filter(d => {
-          const a = d.data() || {};
-          return norm(a.leitung) === target; // 🔥 Teamleiter-Zuordnung
-        });
-      }
+      docs = all.docs.filter(d => {
+        const a = d.data() || {};
+        return norm(a.leitung) === target;
+      });
     }
 
     // =========================
-    // MITARBEITER → NUR SEINE
+    // MITARBEITER → mitarbeiter
     // =========================
     else if (r === "mitarbeiter") {
       if (!name) return res.json({ ok: false, error: "name fehlt" });
@@ -75,14 +61,13 @@ exports.loadAutomaten = functions.https.onRequest(async (req, res) => {
     }
 
     // =========================
-    // Response bauen
+    // RESPONSE
     // =========================
     const automaten = [];
     const centers = new Set();
 
     docs.forEach(doc => {
       const a = doc.data() || {};
-
       const automatCode = a.automatCode || doc.id;
       const center = a.center || "Unbekannt";
 
@@ -101,23 +86,14 @@ exports.loadAutomaten = functions.https.onRequest(async (req, res) => {
       });
     });
 
-    // Reserve (wie bisher, falls genutzt)
-    let reserve = 0;
-    if (name) {
-      const rSnap = await db.collection("reserven").doc(String(name)).get();
-      if (rSnap.exists) reserve = toNumber(rSnap.data()?.betrag);
-    }
-
     return res.json({
       ok: true,
-      count: automaten.length,
-      centers: Array.from(centers).map(c => ({ name: c })),
       automaten,
-      reserve
+      centers: Array.from(centers).map(name => ({ name }))
     });
 
   } catch (err) {
     console.error("loadAutomaten error:", err);
-    return res.status(500).json({ ok: false, error: err.message || "Serverfehler" });
+    return res.status(500).json({ ok: false, error: "Serverfehler" });
   }
 });
