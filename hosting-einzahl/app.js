@@ -1,4 +1,3 @@
-
 /************************************************
  * Einzahl App – vollständige app.js (stabil)
  ************************************************/
@@ -40,6 +39,7 @@ function verifyPin() {
       window.currentUser = d;
       document.getElementById("pinSection").style.display = "none";
       document.getElementById("appSection").style.display = "block";
+      loadAutomatenData();
     })
     .catch(() => {
       statusEl && (statusEl.innerText = "Server nicht erreichbar");
@@ -55,6 +55,150 @@ function showTab(tab) {
     tab === "einzahlung" ? "block" : "none";
   document.getElementById("viewAuswertung").style.display =
     tab === "auswertung" ? "block" : "none";
+}
+
+/* =========================
+   Center / Automaten
+========================= */
+let automatenCache = [];
+let reserveValue = 0;
+
+function setSelectOptions(selectEl, options, placeholder) {
+  if (!selectEl) return;
+  selectEl.innerHTML = "";
+  const ph = document.createElement("option");
+  ph.value = "";
+  ph.textContent = placeholder;
+  selectEl.appendChild(ph);
+  options.forEach(opt => {
+    const el = document.createElement("option");
+    el.value = opt.value;
+    el.textContent = opt.label;
+    selectEl.appendChild(el);
+  });
+}
+
+function renderBestandBox(automat, wechslerAlt = null) {
+  const box = document.getElementById("bestandBox");
+  if (!box) return;
+  if (!automat) {
+    box.innerText = "";
+    return;
+  }
+
+  const reserveLine = Number.isFinite(reserveValue)
+    ? `<div>Reserve: ${reserveValue} €</div>`
+    : "";
+
+  box.innerHTML = `
+    <div><b>${automat.name}</b></div>
+    <div>Center: ${automat.center}</div>
+    <div>Scheine Bestand: ${automat.bestandScheine} €</div>
+    <div>Münzen Bestand: ${automat.bestandMuenzen} €</div>
+    <div>1€ Bestand: ${automat.bestandEinEuro} €</div>
+    <div id="wechslerAltInfo">${wechslerAlt === null ? "Wechsler (alt): wird geladen …" : `Wechsler (alt): ${wechslerAlt} €`}</div>
+    ${reserveLine}
+  `;
+}
+
+async function loadLastWechsler(automatCode) {
+  try {
+    const d = await postJsonWithFallback("/getLastWechsler", {
+      automatCode,
+      stadt: currentUser?.stadt || null
+    });
+    if (!d?.ok) return null;
+    return Number(d.wechslerEinEuroAlt) || 0;
+  } catch {
+    return null;
+  }
+}
+
+async function handleAutomatChange() {
+  const automatSelect = document.getElementById("automatSelect");
+  const einzahlSection = document.getElementById("einzahlSection");
+  const selectedCode = automatSelect?.value || "";
+  const automat = automatenCache.find(a => a.automatCode === selectedCode);
+
+  if (!automat) {
+    renderBestandBox(null);
+    if (einzahlSection) einzahlSection.style.display = "none";
+    return;
+  }
+
+  if (einzahlSection) einzahlSection.style.display = "block";
+  renderBestandBox(automat);
+
+  const wechslerAlt = await loadLastWechsler(automat.automatCode);
+  const info = document.getElementById("wechslerAltInfo");
+  if (info) {
+    info.textContent =
+      wechslerAlt === null
+        ? "Wechsler (alt): nicht verfügbar"
+        : `Wechsler (alt): ${wechslerAlt} €`;
+  }
+}
+
+function handleCenterChange() {
+  const centerSelect = document.getElementById("centerSelect");
+  const automatSelect = document.getElementById("automatSelect");
+  const center = centerSelect?.value || "";
+  const einzahlSection = document.getElementById("einzahlSection");
+
+  const automaten = center
+    ? automatenCache.filter(a => a.center === center)
+    : [];
+
+  setSelectOptions(
+    automatSelect,
+    automaten.map(a => ({
+      value: a.automatCode,
+      label: a.name
+    })),
+    "Bitte Automat wählen"
+  );
+
+  renderBestandBox(null);
+  if (einzahlSection) einzahlSection.style.display = "none";
+}
+
+async function loadAutomatenData() {
+  const centerSelect = document.getElementById("centerSelect");
+  const automatSelect = document.getElementById("automatSelect");
+  const box = document.getElementById("bestandBox");
+
+  if (centerSelect) centerSelect.disabled = true;
+  if (automatSelect) automatSelect.disabled = true;
+  if (box) box.innerText = "Automaten werden geladen …";
+
+  try {
+    const d = await postJsonWithFallback("/loadAutomaten", {
+      role: currentUser?.role,
+      name: currentUser?.name,
+      stadt: currentUser?.stadt
+    });
+
+    automatenCache = Array.isArray(d?.automaten) ? d.automaten : [];
+    reserveValue = Number(d?.reserve) || 0;
+
+    const centers =
+      d?.centers?.map(c => c.name).filter(Boolean) ||
+      Array.from(new Set(automatenCache.map(a => a.center).filter(Boolean)));
+
+    setSelectOptions(
+      centerSelect,
+      centers.map(c => ({ value: c, label: c })),
+      "Bitte Center wählen"
+    );
+    setSelectOptions(automatSelect, [], "Bitte Automat wählen");
+
+    if (box) box.innerText = "Bitte Center auswählen.";
+  } catch (err) {
+    if (box) box.innerText = "Fehler beim Laden der Automaten";
+  } finally {
+    if (centerSelect) centerSelect.disabled = false;
+    if (automatSelect) automatSelect.disabled = false;
+  }
 }
 
 /* =========================
@@ -165,6 +309,20 @@ async function submitBelegeOnly() {
 }
 
 /* =========================
+   Legacy Button Handler
+========================= */
+function submitEinzahlung() {
+  const auswertungVisible =
+    document.getElementById("viewAuswertung")?.style.display === "block";
+  if (auswertungVisible) {
+    submitBelegeOnly();
+  } else {
+    saveAutomatNow();
+  }
+}
+window.submitEinzahlung = submitEinzahlung;
+
+/* =========================
    Event-Bindings (sicher)
 ========================= */
 document.addEventListener("DOMContentLoaded", () => {
@@ -173,4 +331,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const btnFinish = document.querySelector("#viewAuswertung button");
   if (btnFinish) btnFinish.onclick = submitBelegeOnly;
+
+  const centerSelect = document.getElementById("centerSelect");
+  if (centerSelect) centerSelect.onchange = handleCenterChange;
+
+  const automatSelect = document.getElementById("automatSelect");
+  if (automatSelect) automatSelect.onchange = handleAutomatChange;
 });
