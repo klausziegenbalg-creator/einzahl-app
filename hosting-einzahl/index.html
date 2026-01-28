@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Einzahl App</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -12,39 +12,36 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f5f5f5;
+      background: #f2f2f2;
       margin: 0;
-      padding: 0;
     }
-    .container {
+    .app {
       max-width: 900px;
       margin: 0 auto;
-      padding: 16px;
       background: #fff;
+      padding: 16px;
     }
     h2 {
       margin-top: 0;
     }
-    .field {
-      margin-bottom: 12px;
-    }
     label {
-      display: block;
       font-weight: bold;
-      margin-bottom: 4px;
+      display: block;
+      margin-top: 12px;
     }
     input, select, button {
       width: 100%;
       padding: 8px;
       font-size: 16px;
+      margin-top: 4px;
       box-sizing: border-box;
     }
     button {
-      cursor: pointer;
+      margin-top: 12px;
     }
     .tabs {
       display: flex;
-      gap: 8px;
+      gap: 10px;
       margin-bottom: 16px;
     }
     .tabs button {
@@ -52,8 +49,8 @@
     }
     #bestandBox {
       background: #eee;
-      padding: 8px;
-      margin-bottom: 12px;
+      padding: 10px;
+      margin-top: 12px;
     }
     .status {
       margin-top: 8px;
@@ -63,15 +60,13 @@
 </head>
 
 <body>
-<div class="container">
+<div class="app">
 
   <!-- ================= PIN ================= -->
   <div id="pinSection">
-    <h2>PIN Eingabe</h2>
-    <div class="field">
-      <label for="pinInput">PIN</label>
-      <input type="password" id="pinInput">
-    </div>
+    <h2>PIN</h2>
+    <label for="pinInput">PIN</label>
+    <input id="pinInput" type="password">
     <button onclick="verifyPin()">Einloggen</button>
     <div id="pinStatus" class="status"></div>
   </div>
@@ -87,50 +82,33 @@
     <!-- ============ EINZAHLUNG ============ -->
     <div id="viewEinzahlung">
 
-      <div class="field">
-        <label for="centerSelect">Center</label>
-        <select id="centerSelect"></select>
-      </div>
+      <label for="centerSelect">Center</label>
+      <select id="centerSelect"></select>
 
-      <div class="field">
-        <label for="automatSelect">Automat</label>
-        <select id="automatSelect"></select>
-      </div>
+      <label for="automatSelect">Automat</label>
+      <select id="automatSelect"></select>
 
       <div id="bestandBox"></div>
 
       <div id="einzahlSection" style="display:none;">
 
-        <div class="field">
-          <label for="scheineSumme">Scheine (€)</label>
-          <input type="number" id="scheineSumme" min="0" step="1">
-        </div>
+        <label for="scheineSumme">Scheine (€)</label>
+        <input id="scheineSumme" type="number" min="0" step="1">
 
-        <div class="field">
-          <label for="muenzenSumme">Münzen (€)</label>
-          <input type="number" id="muenzenSumme" min="0" step="1">
-        </div>
+        <label for="muenzenSumme">Münzen (€)</label>
+        <input id="muenzenSumme" type="number" min="0" step="1">
 
-        <!-- Reihenfolge exakt nach deiner Vorgabe -->
-        <div class="field">
-          <label for="einEuroEntnommen">1€ entnommen (€)</label>
-          <input type="number" id="einEuroEntnommen" min="0" step="1">
-        </div>
+        <label for="einEuroEntnommen">1€ entnommen (€)</label>
+        <input id="einEuroEntnommen" type="number" min="0" step="1">
 
-        <div class="field">
-          <label for="bestandEinEuroAktuell">Aktueller 1€-Bestand</label>
-          <input type="number" id="bestandEinEuroAktuell" min="0" step="1" required>
-        </div>
+        <label for="bestandEinEuroAktuell">Aktueller 1€-Bestand</label>
+        <input id="bestandEinEuroAktuell" type="number" min="0" step="1">
 
-        <div class="field">
-          <label for="fotoBestand">Bestandsfoto</label>
-          <input type="file" id="fotoBestand" accept="image/*">
-        </div>
+        <label for="fotoBestand">Bestandsfoto</label>
+        <input id="fotoBestand" type="file" accept="image/*">
 
-        <div class="field">
-          <label for="wechslerEinEuroAlt">1€ wieder in Wechsler (€)</label>
-          <input type="number" id="wechslerEinEuroAlt" min="0" step="1">
-        </div>
+        <label for="wechslerEinEuroAlt">Neuer Wechslerbestand (1€) (€)</label>
+        <input id="wechslerEinEuroAlt" type="number" min="0" step="1">
 
         <button id="btnSave">Automat speichern</button>
         <div id="saveStatus" class="status"></div>
@@ -141,29 +119,26 @@
     <!-- ============ AUSWERTUNG ============ -->
     <div id="viewAuswertung" style="display:none;">
 
-      <div class="field">
-        <label for="fotoBeleg1">Einzahlbeleg</label>
-        <input type="file" id="fotoBeleg1" accept="image/*">
-      </div>
+      <label for="fotoBeleg1">Einzahlbeleg</label>
+      <input id="fotoBeleg1" type="file" accept="image/*">
 
-      <div class="field">
-        <label for="fotoBeleg2">Zusätzlicher Beleg (optional)</label>
-        <input type="file" id="fotoBeleg2" accept="image/*">
-      </div>
+      <label for="fotoBeleg2">Zusätzlicher Beleg (optional)</label>
+      <input id="fotoBeleg2" type="file" accept="image/*">
 
-      <button>Einzahlung abschließen</button>
+      <button onclick="submitBelegeOnly()">Einzahlung abschließen</button>
       <div id="auswertungStatus" class="status"></div>
 
     </div>
+
   </div>
 </div>
 
 <!-- Firebase Init -->
 <script>
-  const firebaseConfig = {
-    /* DEINE Firebase Config */
-  };
-  firebase.initializeApp(firebaseConfig);
+  firebase.initializeApp({
+    projectId: "digitales-bordbuch",
+    storageBucket: "digitales-bordbuch.appspot.com"
+  });
   window.storage = firebase.storage();
 </script>
 

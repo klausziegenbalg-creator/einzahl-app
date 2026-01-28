@@ -1,14 +1,7 @@
 /************************************************
- * Einzahl App – vollständige app.js (FINAL)
- * - Keine Merge-Artefakte
- * - KEIN "name" mehr als Anzeige
- * - Anzeige IMMER über automatCode
+ * Einzahl App – vollständige app.js (stabil)
  ************************************************/
-document.addEventListener(
-  "visibilitychange",
-  e => e.stopImmediatePropagation(),
-  true
-);
+
 /* =========================
    Netzwerk-Helper
 ========================= */
@@ -63,7 +56,6 @@ function showTab(tab) {
   document.getElementById("viewAuswertung").style.display =
     tab === "auswertung" ? "block" : "none";
 }
-window.showTab = showTab;
 
 /* =========================
    Center / Automaten
@@ -82,7 +74,6 @@ function normalizeCenter(value) {
 
 function setSelectOptions(selectEl, options, placeholder) {
   if (!selectEl) return;
-
   selectEl.innerHTML = "";
 
   const ph = document.createElement("option");
@@ -94,6 +85,7 @@ function setSelectOptions(selectEl, options, placeholder) {
     const el = document.createElement("option");
     el.value = opt.value;
     el.textContent = opt.label;
+    if (opt.key) el.dataset.key = opt.key; // wichtig für robustes Mapping
     selectEl.appendChild(el);
   });
 }
@@ -111,12 +103,15 @@ function renderBestandBox(automat, wechslerAlt = null) {
     ? `<div>Reserve: ${reserveValue} €</div>`
     : "";
 
+  // Anzeige stabil: AutomatCode (nicht name -> vermeidet undefined)
+  const title = automat.automatCode || "";
+
   box.innerHTML = `
-    <div><b>${automat.automatCode || ""}</b></div>
+    <div><b>${title}</b></div>
     <div>Center: ${automat.center || ""}</div>
-    <div>Scheine Bestand: ${Number(automat.bestandScheine || 0)} €</div>
-    <div>Münzen Bestand: ${Number(automat.bestandMuenzen || 0)} €</div>
-    <div>1€ Bestand: ${Number(automat.bestandEinEuro || 0)} €</div>
+    <div>Scheine Bestand: ${Number(automat.bestandScheine ?? 0)} €</div>
+    <div>Münzen Bestand: ${Number(automat.bestandMuenzen ?? 0)} €</div>
+    <div>1€ Bestand: ${Number(automat.bestandEinEuro ?? 0)} €</div>
     <div id="wechslerAltInfo">${
       wechslerAlt === null
         ? "Wechsler (alt): wird geladen …"
@@ -170,10 +165,22 @@ function handleCenterChange() {
   const automatSelect = document.getElementById("automatSelect");
   const einzahlSection = document.getElementById("einzahlSection");
 
-  const centerKey = normalizeCenter(centerSelect.value);
-  const automaten = centerKey
-    ? automatenByCenter.get(centerKey) || []
-    : [];
+  const selectedOption = centerSelect?.selectedOptions?.[0] || null;
+
+  // bevorzugt dataset.key (stabil), fallback: normalize(value)
+  const centerKey =
+    selectedOption?.dataset?.key ||
+    normalizeCenter(centerSelect?.value || "");
+
+  const centerLabel = normalizeCenter(selectedOption?.textContent || "");
+
+  let automaten = centerKey ? (automatenByCenter.get(centerKey) || []) : [];
+
+  // Fallback falls key nicht passt (z.B. alte Options)
+  if (!automaten.length && (centerKey || centerLabel)) {
+    const lookupKey = centerKey || centerLabel;
+    automaten = automatenCache.filter(a => normalizeCenter(a.center) === lookupKey);
+  }
 
   setSelectOptions(
     automatSelect,
@@ -200,8 +207,8 @@ async function loadAutomatenData() {
   try {
     const d = await postJsonWithFallback("/loadAutomaten", {
       role: currentUser?.role,
-      name: currentUser?.name,
-      stadt: currentUser?.stadt
+      name: currentUser?.name
+      // stadt absichtlich nicht nötig, Teamleiter-Logik kommt aus Automaten
     });
 
     automatenCache = Array.isArray(d?.automaten) ? d.automaten : [];
@@ -211,33 +218,43 @@ async function loadAutomatenData() {
     automatenCache.forEach(a => {
       const key = normalizeCenter(a.center);
       if (!key) return;
-      if (!automatenByCenter.has(key)) {
-        automatenByCenter.set(key, []);
-      }
+      if (!automatenByCenter.has(key)) automatenByCenter.set(key, []);
       automatenByCenter.get(key).push(a);
     });
 
-    const centers = [];
-    automatenByCenter.forEach((list, key) => {
-      if (list.length) {
-        centers.push({
-          value: list[0].center,
-          label: list[0].center
-        });
-      }
+    // Center-Liste stabil: aus API + aus Automaten
+    const centersFromApi = (d?.centers || []).map(c => c?.name).filter(Boolean);
+    const centersFromAutomaten = automatenCache.map(a => a.center).filter(Boolean);
+
+    const centerMap = new Map();
+    [...centersFromApi, ...centersFromAutomaten].forEach(center => {
+      const key = normalizeCenter(center);
+      if (!key) return;
+      if (!centerMap.has(key)) centerMap.set(key, center);
     });
 
-    setSelectOptions(centerSelect, centers, "Bitte Center wählen");
+    setSelectOptions(
+      centerSelect,
+      Array.from(centerMap.entries()).map(([key, label]) => ({
+        value: label,   // Anzeige/Value bleibt menschlich lesbar
+        label,
+        key            // dataset.key für robustes Mapping
+      })),
+      "Bitte Center wählen"
+    );
+
     setSelectOptions(automatSelect, [], "Bitte Automat wählen");
 
     if (box) box.innerText = "Bitte Center auswählen.";
-  } catch {
+  } catch (err) {
+    console.error(err);
     if (box) box.innerText = "Fehler beim Laden der Automaten";
   } finally {
     if (centerSelect) centerSelect.disabled = false;
     if (automatSelect) automatSelect.disabled = false;
   }
-}/* =========================
+}
+/* =========================
    Firebase Storage Upload
 ========================= */
 async function uploadToStorage(file, folder) {
@@ -258,7 +275,25 @@ async function saveAutomatNow() {
   const status = document.getElementById("saveStatus");
   status && (status.innerText = "");
 
+  const automatCode = document.getElementById("automatSelect")?.value || "";
+  const automat = automatenCache.find(a => a.automatCode === automatCode);
+
+  const bestandEinEuroAktuell = Number(
+    document.getElementById("bestandEinEuroAktuell")?.value
+  );
+
   const foto = document.getElementById("fotoBestand")?.files?.[0];
+
+  if (!automatCode || !automat) {
+    status && (status.innerText = "Bitte Automat wählen.");
+    return;
+  }
+
+  if (!Number.isFinite(bestandEinEuroAktuell)) {
+    status && (status.innerText = "Aktueller 1€-Bestand ist Pflicht.");
+    return;
+  }
+
   if (!foto) {
     status && (status.innerText = "Bestandsfoto ist Pflicht.");
     return;
@@ -266,26 +301,23 @@ async function saveAutomatNow() {
 
   try {
     status && (status.innerText = "Foto wird hochgeladen …");
-
     const fotoBestandPath = await uploadToStorage(foto, "einzahlBestand");
 
     const payload = {
-      automatCode: document.getElementById("automatSelect")?.value,
-      stadt: currentUser?.stadt || "",
+      automatCode,
+      stadt: automat.stadt || "",
       teamleiter: currentUser?.name || "",
 
-      // 🔑 Klammer für Zusammenfassung
+      // Klammer für mehrere Automaten in einer Einzahlung
       einzahlId: einzahlId,
 
       // Beträge
       scheine: Number(document.getElementById("scheineSumme")?.value || 0),
       muenzen: Number(document.getElementById("muenzenSumme")?.value || 0),
 
-      // 1€ Logik
+      // 1€-Logik
       einEuroEntnommen: Number(document.getElementById("einEuroEntnommen")?.value || 0),
-      bestandEinEuroAktuell: Number(
-        document.getElementById("bestandEinEuroAktuell")?.value || 0
-      ),
+      bestandEinEuroAktuell,
       wechslerNeu: Number(document.getElementById("wechslerEinEuroAlt")?.value || 0),
 
       // Foto
@@ -293,37 +325,34 @@ async function saveAutomatNow() {
     };
 
     status && (status.innerText = "Automat wird gespeichert …");
-
     const d = await postJsonWithFallback("/submitAutomat", payload);
-    if (!d || !d.ok) {
+
+    if (!d?.ok) {
       status && (status.innerText = d?.error || "Fehler beim Speichern");
       return;
     }
 
-    // 🔁 Einzahl-ID für weitere Automaten merken
-    einzahlId = d.einzahlId;
+    // Merken für weitere Automaten
+    einzahlId = d.einzahlId || einzahlId;
 
     status && (status.innerText = "✅ Automat gespeichert");
 
-    // Felder zurücksetzen (nicht die ID!)
-    [
-      "scheineSumme",
-      "muenzenSumme",
-      "einEuroEntnommen",
-      "bestandEinEuroAktuell",
-      "wechslerEinEuroAlt"
-    ].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.value = "";
+    ["scheineSumme","muenzenSumme","einEuroEntnommen","bestandEinEuroAktuell","wechslerEinEuroAlt"].forEach(id=>{
+      const el=document.getElementById(id); if(el) el.value="";
     });
-
     document.getElementById("fotoBestand").value = "";
 
-  } catch (err) {
-    console.error(err);
+    // (optional) Zusammenfassung aktualisieren, wenn vorhanden
+    if (typeof renderZusammenfassung === "function") {
+      try { renderZusammenfassung(); } catch {}
+    }
+
+  } catch (e) {
+    console.error(e);
     status && (status.innerText = "Serverfehler beim Speichern");
   }
 }
+
 /* =========================
    Belege abschließen
 ========================= */
@@ -331,7 +360,7 @@ async function submitBelegeOnly() {
   const status = document.getElementById("auswertungStatus");
   status && (status.innerText = "");
 
-  if (!einzahlSessionId) {
+  if (!einzahlId) {
     status && (status.innerText = "Keine aktive Einzahlung");
     return;
   }
@@ -349,22 +378,35 @@ async function submitBelegeOnly() {
     const beleg2Path = f2 ? await uploadToStorage(f2, "einzahlBelege") : null;
 
     const payload = {
-      sessionId: einzahlSessionId,
-      stadt: currentUser?.stadt,
-      teamleiter: currentUser?.name,
+      einzahlId,
+      stadt: currentUser?.stadt || null,
+      teamleiter: currentUser?.name || null,
       beleg1Path,
       beleg2Path
     };
 
     const d = await postJsonWithFallback("/submitBelege", payload);
-    if (!d.ok) {
-      status && (status.innerText = d.error || "Fehler beim Abschluss");
+    if (!d?.ok) {
+      status && (status.innerText = d?.error || "Fehler beim Abschluss");
       return;
     }
 
     status && (status.innerText = "✅ Einzahlung abgeschlossen");
-    einzahlSessionId = null;
-  } catch {
+    einzahlId = null;
+
+    // Datei-Inputs leeren
+    const i1 = document.getElementById("fotoBeleg1");
+    const i2 = document.getElementById("fotoBeleg2");
+    if (i1) i1.value = "";
+    if (i2) i2.value = "";
+
+    // (optional) Zusammenfassung leeren/refresh
+    if (typeof renderZusammenfassung === "function") {
+      try { renderZusammenfassung(); } catch {}
+    }
+
+  } catch (e) {
+    console.error(e);
     status && (status.innerText = "Serverfehler beim Abschluss");
   }
 }
@@ -384,7 +426,7 @@ function submitEinzahlung() {
 window.submitEinzahlung = submitEinzahlung;
 
 /* =========================
-   Event-Bindings
+   Event-Bindings (sicher)
 ========================= */
 document.addEventListener("DOMContentLoaded", () => {
   const btnSave = document.getElementById("btnSave");
