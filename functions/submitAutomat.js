@@ -1,64 +1,56 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 
+if (!admin.apps.length) admin.initializeApp();
+const db = admin.firestore();
+
 exports.submitAutomat = functions.https.onRequest(async (req, res) => {
   try {
-    const db = admin.firestore();
-
     const {
       automatCode,
       stadt,
       teamleiter,
-      scheine,
-      muenzen,
+      einzahlId,
+      bestandEinEuroAktuell,
       einEuroEntnommen,
       wechslerNeu,
+      scheine,
+      muenzen,
       bestandFotoPath
     } = req.body || {};
 
-    if (!automatCode || !stadt || !teamleiter || !bestandFotoPath) {
-      return res.json({ ok: false, error: "Pflichtfelder fehlen" });
+    if (!automatCode) {
+      return res.json({ ok: false, error: "automatCode fehlt" });
     }
 
-    // 1️⃣ Automat EINZELN speichern (unverändert)
-    await db.collection("automatenEinzahlungen").add({
+    if (!Number.isFinite(Number(bestandEinEuroAktuell))) {
+      return res.json({ ok: false, error: "bestandEinEuroAktuell fehlt" });
+    }
+
+    const finalEinzahlId = einzahlId || db.collection("_").doc().id;
+
+    const reserveDelta =
+      Number(einEuroEntnommen || 0) - Number(wechslerNeu || 0);
+
+    await db.collection("einzahlungen_automaten").add({
       automatCode,
-      stadt,
-      teamleiter,
-      scheine: Number(scheine) || 0,
-      muenzen: Number(muenzen) || 0,
+      stadt: stadt || "",
+      teamleiter: teamleiter || "",
+      einzahlId: finalEinzahlId,
+
+      bestandEinEuroAktuell: Number(bestandEinEuroAktuell),
       einEuroEntnommen: Number(einEuroEntnommen) || 0,
       wechslerNeu: Number(wechslerNeu) || 0,
+      reserveDelta,
+
+      scheine: Number(scheine) || 0,
+      muenzen: Number(muenzen) || 0,
+
       bestandFotoPath,
       createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
-    // 2️⃣ 🔥 ZUSAMMENFASSUNG / AUSWERTUNG (NEU, wie im alten Backup)
-    await db.collection("einzahlungen").add({
-      stadt,
-      automatCode,
-
-      scheineSumme: Number(scheine) || 0,
-      muenzenSumme: Number(muenzen) || 0,
-
-      einEuro: {
-        entnommen: Number(einEuroEntnommen) || 0,
-        reserve: 0
-      },
-
-      wechsler: {
-        neu: Number(wechslerNeu) || 0
-      },
-
-      fotos: {
-        bestand: bestandFotoPath,
-        belege: []
-      },
-
-      createdAt: admin.firestore.FieldValue.serverTimestamp()
-    });
-
-    return res.json({ ok: true });
+    return res.json({ ok: true, einzahlId: finalEinzahlId });
 
   } catch (err) {
     console.error(err);

@@ -252,53 +252,70 @@ async function uploadToStorage(file, folder) {
 /* =========================
    Automat speichern
 ========================= */
-let einzahlSessionId = null;
+let einzahlId = null;
 
 async function saveAutomatNow() {
   const status = document.getElementById("saveStatus");
-  status && (status.innerText = "");
+  if (status) status.innerText = "";
 
   const foto = document.getElementById("fotoBestand")?.files?.[0];
+  const bestandEinEuroAktuell =
+    Number(document.getElementById("bestandEinEuroAktuell")?.value || NaN);
+
   if (!foto) {
-    status && (status.innerText = "Bestandsfoto ist Pflicht.");
+    status.innerText = "Bestandsfoto ist Pflicht.";
+    return;
+  }
+
+  if (!Number.isFinite(bestandEinEuroAktuell)) {
+    status.innerText = "Aktueller 1€-Bestand ist Pflicht.";
     return;
   }
 
   try {
-    status && (status.innerText = "Foto wird hochgeladen …");
+    status.innerText = "Foto wird hochgeladen …";
     const fotoBestandPath = await uploadToStorage(foto, "einzahlBestand");
 
     const payload = {
-      automatCode: document.getElementById("automatSelect")?.value,
-      stadt: currentUser?.stadt,
-      teamleiter: currentUser?.name,
-      sessionId: einzahlSessionId,
-      scheine: Number(document.getElementById("scheineSumme")?.value || 0),
-      muenzen: Number(document.getElementById("muenzenSumme")?.value || 0),
+      automatCode: document.getElementById("automatSelect")?.value || "",
+      stadt: currentUser?.stadt || "",
+      teamleiter: currentUser?.name || "",
+      einzahlId,
+
+      bestandEinEuroAktuell,
       einEuroEntnommen: Number(document.getElementById("einEuroEntnommen")?.value || 0),
       wechslerNeu: Number(document.getElementById("wechslerEinEuroAlt")?.value || 0),
+
+      scheine: Number(document.getElementById("scheineSumme")?.value || 0),
+      muenzen: Number(document.getElementById("muenzenSumme")?.value || 0),
+
       bestandFotoPath: fotoBestandPath
     };
 
-    status && (status.innerText = "Automat wird gespeichert …");
+    status.innerText = "Automat wird gespeichert …";
     const d = await postJsonWithFallback("/submitAutomat", payload);
-    if (!d.ok) {
-      status && (status.innerText = d.error || "Fehler beim Speichern");
+
+    if (!d?.ok) {
+      status.innerText = d?.error || "Fehler beim Speichern";
       return;
     }
 
-    einzahlSessionId = d.sessionId;
-    status && (status.innerText = "✅ Automat gespeichert");
+    einzahlId = d.einzahlId;
+    status.innerText = "✅ Automat gespeichert";
 
-    ["scheineSumme","muenzenSumme","einEuroEntnommen","wechslerEinEuroAlt"].forEach(id=>{
-      const el=document.getElementById(id); if(el) el.value="";
-    });
+    ["scheineSumme","muenzenSumme","einEuroEntnommen","wechslerEinEuroAlt","bestandEinEuroAktuell"]
+      .forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = "";
+      });
+
     document.getElementById("fotoBestand").value = "";
-  } catch {
-    status && (status.innerText = "Serverfehler beim Speichern");
+
+  } catch (e) {
+    console.error(e);
+    status.innerText = "Serverfehler beim Speichern";
   }
 }
-
 /* =========================
    Belege abschließen
 ========================= */

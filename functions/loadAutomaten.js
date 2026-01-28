@@ -37,7 +37,7 @@ exports.loadAutomaten = functions.https.onRequest(async (req, res) => {
 
       docs = all.docs.filter(d => {
         const a = d.data() || {};
-        return norm(a.leitung) === target;
+       return norm(a.leitung).includes(target) || target.includes(norm(a.leitung));
       });
     }
 
