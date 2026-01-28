@@ -9,64 +9,21 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f2f2f2;
-      margin: 0;
-    }
-    .app {
-      max-width: 900px;
-      margin: 0 auto;
-      background: #fff;
-      padding: 16px;
-    }
-    h2 {
-      margin-top: 0;
-    }
-    label {
-      font-weight: bold;
-      display: block;
-      margin-top: 12px;
-    }
-    input, select, button {
-      width: 100%;
-      padding: 8px;
-      font-size: 16px;
-      margin-top: 4px;
-      box-sizing: border-box;
-    }
-    button {
-      margin-top: 12px;
-    }
-    .tabs {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 16px;
-    }
-    .tabs button {
-      flex: 1;
-    }
-    #bestandBox {
-      background: #eee;
-      padding: 10px;
-      margin-top: 12px;
-    }
-    .status {
-      margin-top: 8px;
-      font-weight: bold;
-    }
-  </style>
+  <!-- ✅ WICHTIG: externes Styling wie früher -->
+  <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
+
 <div class="app">
 
   <!-- ================= PIN ================= -->
   <div id="pinSection">
     <h2>PIN</h2>
+
     <label for="pinInput">PIN</label>
     <input id="pinInput" type="password">
+
     <button onclick="verifyPin()">Einloggen</button>
     <div id="pinStatus" class="status"></div>
   </div>
@@ -93,26 +50,25 @@
       <div id="einzahlSection" style="display:none;">
 
         <label for="scheineSumme">Scheine (€)</label>
-        <input id="scheineSumme" type="number" min="0" step="1">
+        <input id="scheineSumme" type="number" min="0">
 
         <label for="muenzenSumme">Münzen (€)</label>
-        <input id="muenzenSumme" type="number" min="0" step="1">
+        <input id="muenzenSumme" type="number" min="0">
 
         <label for="einEuroEntnommen">1€ entnommen (€)</label>
-        <input id="einEuroEntnommen" type="number" min="0" step="1">
+        <input id="einEuroEntnommen" type="number" min="0">
 
         <label for="bestandEinEuroAktuell">Aktueller 1€-Bestand</label>
-        <input id="bestandEinEuroAktuell" type="number" min="0" step="1">
+        <input id="bestandEinEuroAktuell" type="number" min="0">
 
         <label for="fotoBestand">Bestandsfoto</label>
         <input id="fotoBestand" type="file" accept="image/*">
 
-        <label for="wechslerEinEuroAlt">Neuer Wechslerbestand (1€) (€)</label>
-        <input id="wechslerEinEuroAlt" type="number" min="0" step="1">
+        <label for="wechslerEinEuroAlt">Neuer Wechslerbestand (1€)</label>
+        <input id="wechslerEinEuroAlt" type="number" min="0">
 
         <button id="btnSave">Automat speichern</button>
         <div id="saveStatus" class="status"></div>
-
       </div>
     </div>
 
@@ -127,7 +83,6 @@
 
       <button onclick="submitBelegeOnly()">Einzahlung abschließen</button>
       <div id="auswertungStatus" class="status"></div>
-
     </div>
 
   </div>
