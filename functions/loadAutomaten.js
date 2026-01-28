@@ -7,19 +7,27 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
+/* =========================
+   Helper
+========================= */
 const norm = v => String(v || "").trim().toLowerCase();
 const toNumber = v => Number.isFinite(Number(v)) ? Number(v) : 0;
 
+/* =========================
+   loadAutomaten
+========================= */
 exports.loadAutomaten = functions.https.onRequest(async (req, res) => {
   try {
     const { role, name } = req.body || {};
-    if (!role) return res.json({ ok: false, error: "role fehlt" });
+    if (!role) {
+      return res.json({ ok: false, error: "role fehlt" });
+    }
 
     const r = norm(role);
     let docs = [];
 
     // =========================
-    // ADMIN → ALLE AUTOMATEN
+    // ADMIN → alle Automaten
     // =========================
     if (r === "admin") {
       const snap = await db.collection("automaten").get();
@@ -27,40 +35,21 @@ exports.loadAutomaten = functions.https.onRequest(async (req, res) => {
     }
 
     // =========================
-    // TEAMLEITER → ALLE SEINER STADT
+    // TEAMLEITER → ALLE Automaten
+    // (wie früher, Stadt/Center aus automaten)
     // =========================
     else if (r === "teamleiter") {
-      if (!name) return res.json({ ok: false, error: "name fehlt" });
-
-      // Stadt wird NICHT aus dem PIN genommen,
-      // sondern indirekt aus den Automaten ermittelt
-      const all = await db.collection("automaten").get();
-      const target = norm(name);
-
-      // 1. Stadt des Teamleiters aus vorhandenen Automaten ableiten
-      const leaderAutomat = all.docs.find(d => {
-        const a = d.data() || {};
-        return norm(a.leitung) === target;
-      });
-
-      if (!leaderAutomat) {
-        return res.json({ ok: true, automaten: [], centers: [] });
-      }
-
-      const leaderCity = norm(leaderAutomat.data().stadt);
-
-      // 2. Alle Automaten dieser Stadt zurückgeben
-      docs = all.docs.filter(d => {
-        const a = d.data() || {};
-        return norm(a.stadt) === leaderCity;
-      });
+      const snap = await db.collection("automaten").get();
+      docs = snap.docs;
     }
 
     // =========================
-    // MITARBEITER → SEINE AUTOMATEN
+    // MITARBEITER → eigene Automaten
     // =========================
     else if (r === "mitarbeiter") {
-      if (!name) return res.json({ ok: false, error: "name fehlt" });
+      if (!name) {
+        return res.json({ ok: false, error: "name fehlt" });
+      }
 
       const all = await db.collection("automaten").get();
       const target = norm(name);
@@ -76,7 +65,7 @@ exports.loadAutomaten = functions.https.onRequest(async (req, res) => {
     }
 
     // =========================
-    // RESPONSE
+    // Response bauen
     // =========================
     const automaten = [];
     const centers = new Set();
@@ -109,6 +98,9 @@ exports.loadAutomaten = functions.https.onRequest(async (req, res) => {
 
   } catch (err) {
     console.error("loadAutomaten error:", err);
-    return res.status(500).json({ ok: false, error: "Serverfehler" });
+    return res.status(500).json({
+      ok: false,
+      error: "Serverfehler"
+    });
   }
 });
