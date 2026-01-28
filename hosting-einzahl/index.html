@@ -3,123 +3,170 @@
 <head>
   <meta charset="UTF-8">
   <title>Einzahl App</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="styles.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 16px;
+      background: #fff;
+    }
+    h2 {
+      margin-top: 0;
+    }
+    .field {
+      margin-bottom: 12px;
+    }
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    input, select, button {
+      width: 100%;
+      padding: 8px;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+    button {
+      cursor: pointer;
+    }
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .tabs button {
+      flex: 1;
+    }
+    #bestandBox {
+      background: #eee;
+      padding: 8px;
+      margin-bottom: 12px;
+    }
+    .status {
+      margin-top: 8px;
+      font-weight: bold;
+    }
+  </style>
 </head>
+
 <body>
+<div class="container">
 
-  <header class="header">
-    <div class="container header-inner">
-      <img src="Logo.png" alt="Automatenservice Logo" class="logo">
-      <div class="header-title">Automatenservice Schiemann & Automatenservice Albrecht</div>
-    </div>
-  </header>
-
-  <main class="container">
-
-    <section id="pinSection" class="card">
-      <h2>Anmeldung</h2>
+  <!-- ================= PIN ================= -->
+  <div id="pinSection">
+    <h2>PIN Eingabe</h2>
+    <div class="field">
       <label for="pinInput">PIN</label>
       <input type="password" id="pinInput">
-      <button type="button" onclick="verifyPin()">Anmelden</button>
-      <div id="pinStatus" class="status"></div>
-    </section>
+    </div>
+    <button onclick="verifyPin()">Einloggen</button>
+    <div id="pinStatus" class="status"></div>
+  </div>
 
-    <section id="appSection" class="card" style="display:none">
-      <div class="tabs">
-        <button id="tabEinzahlung" class="tab active" type="button" onclick="showTab('einzahlung')">Einzahlung</button>
-        <button id="tabAuswertung" class="tab" type="button" onclick="showTab('auswertung')">Zusammenfassung</button>
+  <!-- ================= APP ================= -->
+  <div id="appSection" style="display:none;">
+
+    <div class="tabs">
+      <button onclick="showTab('einzahlung')">Einzahlung</button>
+      <button onclick="showTab('auswertung')">Auswertung</button>
+    </div>
+
+    <!-- ============ EINZAHLUNG ============ -->
+    <div id="viewEinzahlung">
+
+      <div class="field">
+        <label for="centerSelect">Center</label>
+        <select id="centerSelect"></select>
       </div>
 
-      <div id="viewEinzahlung">
+      <div class="field">
+        <label for="automatSelect">Automat</label>
+        <select id="automatSelect"></select>
+      </div>
 
-        <div class="subcard">
-          <h2>Auswahl</h2>
-          <label for="centerSelect">Center</label>
-          <select id="centerSelect"></select>
-          <label for="automatSelect">Automat</label>
-          <select id="automatSelect"></select>
-          <div id="bestandBox" class="box"></div>
-        </div>
+      <div id="bestandBox"></div>
 
-        <div id="einzahlSection" class="subcard" style="display:none">
-          <h2>Entnahme</h2>
+      <div id="einzahlSection" style="display:none;">
 
+        <div class="field">
           <label for="scheineSumme">Scheine (€)</label>
-          <input id="scheineSumme" type="number">
-
-          <label for="muenzenSumme">Münzen gesamt (€)</label>
-          <input id="muenzenSumme" type="number">
-
-          <label for="einEuroEntnommen">Entnommene 1€ Münzen (€)</label>
-          <input id="einEuroEntnommen" type="number">
-
-          <label for="fotoBestand"><b>📸 Bestandsfoto (Pflicht)</b></label>
-          <input id="fotoBestand" type="file" accept="image/*" capture="environment">
-          <small>Bitte zuerst ein Foto vom Bestand machen oder auswählen, dann Münzen hinzurechnen und eingeben.</small>
-          <img id="previewBestand" class="photo-preview">
-
-          <h2>Wechsler</h2>
-          <label for="wechslerEinEuroAlt">1€ Bestand im Wechsler (NEU – eingeben)</label>
-          <input id="wechslerEinEuroAlt" type="number">
-
-          <button id="btnSave" type="button" onclick="submitEinzahlung()">➕ Automat speichern</button>
-          <div id="saveStatus" class="status"></div>
+          <input type="number" id="scheineSumme" min="0" step="1">
         </div>
+
+        <div class="field">
+          <label for="muenzenSumme">Münzen (€)</label>
+          <input type="number" id="muenzenSumme" min="0" step="1">
+        </div>
+
+        <!-- Reihenfolge exakt nach deiner Vorgabe -->
+        <div class="field">
+          <label for="einEuroEntnommen">1€ entnommen (€)</label>
+          <input type="number" id="einEuroEntnommen" min="0" step="1">
+        </div>
+
+        <div class="field">
+          <label for="bestandEinEuroAktuell">Aktueller 1€-Bestand</label>
+          <input type="number" id="bestandEinEuroAktuell" min="0" step="1" required>
+        </div>
+
+        <div class="field">
+          <label for="fotoBestand">Bestandsfoto</label>
+          <input type="file" id="fotoBestand" accept="image/*">
+        </div>
+
+        <div class="field">
+          <label for="wechslerEinEuroAlt">1€ wieder in Wechsler (€)</label>
+          <input type="number" id="wechslerEinEuroAlt" min="0" step="1">
+        </div>
+
+        <button id="btnSave">Automat speichern</button>
+        <div id="saveStatus" class="status"></div>
 
       </div>
+    </div>
 
-      <div id="viewAuswertung" style="display:none">
-        <div class="subcard">
-          <h2>Zusammenfassung</h2>
-          <div id="auswertungStatus" class="status"></div>
-        </div>
+    <!-- ============ AUSWERTUNG ============ -->
+    <div id="viewAuswertung" style="display:none;">
 
-        <div class="subcard">
-          <div id="auswertungList" class="list"></div>
-        </div>
-
-        <div class="subcard">
-          <h2>Belege</h2>
-
-          <div class="photo-grid">
-            <div class="photo-item">
-              <label for="fotoBeleg1">Einzahlbeleg Foto 1 (Pflicht)</label>
-              <input id="fotoBeleg1" type="file" accept="image/*" capture="environment">
-              <img id="previewBeleg1" class="photo-preview">
-            </div>
-
-            <div class="photo-item">
-              <label for="fotoBeleg2">Einzahlbeleg Foto 2 (optional)</label>
-              <input id="fotoBeleg2" type="file" accept="image/*" capture="environment">
-              <img id="previewBeleg2" class="photo-preview">
-            </div>
-          </div>
-
-          <button type="button" onclick="submitEinzahlung()">💾 Abschließen</button>
-        </div>
+      <div class="field">
+        <label for="fotoBeleg1">Einzahlbeleg</label>
+        <input type="file" id="fotoBeleg1" accept="image/*">
       </div>
-    </section>
-  </main>
 
-  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-storage-compat.js"></script>
+      <div class="field">
+        <label for="fotoBeleg2">Zusätzlicher Beleg (optional)</label>
+        <input type="file" id="fotoBeleg2" accept="image/*">
+      </div>
 
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyBo-pt3krDP9c5AxojmWaHVqPkoqmupOvA",
-      authDomain: "digitales-bordbuch.firebaseapp.com",
-      projectId: "digitales-bordbuch",
-      storageBucket: "digitales-bordbuch.appspot.com",
-      messagingSenderId: "612073997080",
-      appId: "1:612073997080:web:762a85694716da8f84546d"
-    };
-    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-    window.storage = firebase.storage();
-    window.db = firebase.firestore();
-  </script>
+      <button>Einzahlung abschließen</button>
+      <div id="auswertungStatus" class="status"></div>
 
-  <script src="app.js"></script>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase Init -->
+<script>
+  const firebaseConfig = {
+    /* DEINE Firebase Config */
+  };
+  firebase.initializeApp(firebaseConfig);
+  window.storage = firebase.storage();
+</script>
+
+<script src="app.js"></script>
 </body>
 </html>

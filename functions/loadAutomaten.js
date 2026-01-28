@@ -19,7 +19,7 @@ exports.loadAutomaten = functions.https.onRequest(async (req, res) => {
     let docs = [];
 
     // =========================
-    // ADMIN → ALLE
+    // ADMIN → ALLE AUTOMATEN
     // =========================
     if (r === "admin") {
       const snap = await db.collection("automaten").get();
@@ -27,22 +27,37 @@ exports.loadAutomaten = functions.https.onRequest(async (req, res) => {
     }
 
     // =========================
-    // TEAMLEITER → leitung
+    // TEAMLEITER → ALLE SEINER STADT
     // =========================
     else if (r === "teamleiter") {
       if (!name) return res.json({ ok: false, error: "name fehlt" });
 
+      // Stadt wird NICHT aus dem PIN genommen,
+      // sondern indirekt aus den Automaten ermittelt
       const all = await db.collection("automaten").get();
       const target = norm(name);
 
+      // 1. Stadt des Teamleiters aus vorhandenen Automaten ableiten
+      const leaderAutomat = all.docs.find(d => {
+        const a = d.data() || {};
+        return norm(a.leitung) === target;
+      });
+
+      if (!leaderAutomat) {
+        return res.json({ ok: true, automaten: [], centers: [] });
+      }
+
+      const leaderCity = norm(leaderAutomat.data().stadt);
+
+      // 2. Alle Automaten dieser Stadt zurückgeben
       docs = all.docs.filter(d => {
         const a = d.data() || {};
-       return norm(a.leitung).includes(target) || target.includes(norm(a.leitung));
+        return norm(a.stadt) === leaderCity;
       });
     }
 
     // =========================
-    // MITARBEITER → mitarbeiter
+    // MITARBEITER → SEINE AUTOMATEN
     // =========================
     else if (r === "mitarbeiter") {
       if (!name) return res.json({ ok: false, error: "name fehlt" });
