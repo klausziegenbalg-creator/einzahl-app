@@ -35,13 +35,21 @@ exports.loadAutomaten = functions.https.onRequest(async (req, res) => {
     }
 
     // =========================
-    // TEAMLEITER → ALLE Automaten
-    // (wie früher, Stadt/Center aus automaten)
-    // =========================
-    else if (r === "teamleiter") {
-      const snap = await db.collection("automaten").get();
-      docs = snap.docs;
-    }
+// TEAMLEITER → ALLE AUTOMATEN SEINER STADT
+// =========================
+else if (r === "teamleiter") {
+  if (!req.body.stadt) {
+    return res.json({ ok: false, error: "stadt fehlt" });
+  }
+
+  const targetStadt = norm(req.body.stadt);
+
+  const all = await db.collection("automaten").get();
+  docs = all.docs.filter(d => {
+    const a = d.data() || {};
+    return norm(a.stadt) === targetStadt;
+  });
+}
 
     // =========================
     // MITARBEITER → eigene Automaten
